@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { type } from '@tauri-apps/plugin-os'; // Добавь этот плагин
 import { exists, mkdir, remove } from '@tauri-apps/plugin-fs';
 import { join, appDataDir } from '@tauri-apps/api/path';
-import { config, launchInfo, saveConfigToDisk } from '$lib/stores.js';
+import { config, launchInfo } from '$lib/stores.js';
 import { listen } from '@tauri-apps/api/event'
 
 async function getJavaConfig() {

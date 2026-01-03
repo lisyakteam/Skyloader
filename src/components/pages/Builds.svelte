@@ -6,7 +6,7 @@
   import { join, appDataDir } from '@tauri-apps/api/path';
   import { fetch } from '@tauri-apps/plugin-http';
   import { invoke } from '@tauri-apps/api/core';
-  import { myBuilds, config, saveConfigToDisk } from '$lib/stores.js';
+  import { myBuilds, config } from '$lib/stores.js';
 
   const API_URL = "https://лисяк.рф/launcher";
   const MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
@@ -26,7 +26,6 @@
   onMount(async () => {
     try {
       await initFileSystem();
-      await loadLocalData();
       await loadLocalBuilds();
       await fetchCommunityBuilds();
       await fetchMcVersions();
@@ -43,13 +42,6 @@
     }
     if (!(await exists('instances', { baseDir: BaseDirectory.AppData }))) {
       await mkdir('instances', { baseDir: BaseDirectory.AppData });
-    }
-  }
-
-  async function loadLocalData() {
-    if (await exists('config.json', { baseDir: BaseDirectory.AppData })) {
-      const raw = await readTextFile('config.json', { baseDir: BaseDirectory.AppData });
-      config.set(JSON.parse(raw));
     }
   }
 
@@ -290,7 +282,7 @@
 }
 
   async function deleteInstance(instance) {
-    if (!confirm(`Удалить сборку "${instance.name}"?`)) return;
+    if (!await confirm(`Удалить сборку "${instance.name}"?`)) return;
     await remove(await join('instances', instance.dirName), { baseDir: BaseDirectory.AppData, recursive: true });
     myBuilds.update(list => list.filter(b => b.instanceId !== instance.instanceId));
     selectInstance(null);
@@ -341,11 +333,7 @@
 
   function selectInstance(id) {
     selectedInstanceId = id;
-    config.update(c => {
-      const nc = { ...c, lastInstanceId: id };
-      saveConfigToDisk(nc);
-      return nc;
-    });
+    config.update(c => ({ ...c, lastInstanceId: id }));
   }
 
   $: if (activeTab === 'community' && selectedItem && !selectedItem.modsLoaded) {
@@ -845,7 +833,7 @@
   .m-desc { color: #555; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .m-ver { color: var(--blue); font-size: 11px; background: rgba(59, 93, 167, 0.1); padding: 2px 6px; border-radius: 4px; }
 
-  .empty { text-align: center; color: var(--text-hint); margin-top: 40px; font-size: 13px; }
+  .empty { text-align: center; color: var(--text-hint); margin-top: 20px; font-size: 13px; }
   .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-hint); }
   .create-btn {
   flex-shrink: 0;

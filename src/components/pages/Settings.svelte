@@ -1,13 +1,14 @@
 <script>
-  import { config, saveConfigToDisk } from '$lib/stores.js';
+  import { config } from '$lib/stores.js';
   import { invoke } from '@tauri-apps/api/core';
   import { getVersion } from '@tauri-apps/api/app';
   import { open } from '@tauri-apps/plugin-dialog';
   import { onMount } from 'svelte';
   import { checkOrInstallJava } from '$lib/launcher/java.js';
+  import { fly } from 'svelte/transition';
 
   let totalSystemRam = 16384;
-  let appVersion = "0.0.0";
+  let appVersion = "1.0.0";
   let isJavaValid = false;
   let showUpdateModal = false;
   let updateData = { tag: '', body: '' };
@@ -28,6 +29,14 @@
     await validateJava();
   });
 
+  let timeout;
+  function saveConfigToDisk() {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      config.update(current => current)
+    }, 500);
+  };
+
   async function validateJava() {
     if ($config.javaPath) {
       isJavaValid = await invoke('check_java_version', { path: $config.javaPath });
@@ -44,8 +53,7 @@
   async function selectJavaPath() {
     const selected = await open({
       directory: false,
-      multiple: false,
-      filters: [{ name: 'Java Executable', extensions: ['exe'] }]
+      multiple: false
     });
     if (selected) {
       $config.javaPath = selected;
@@ -54,13 +62,21 @@
     }
   }
 
+  let showSuccessToast = false;
+
   async function checkUpdates() {
     try {
       const res = await fetch('https://api.github.com/repos/lisyakteam/skyloader/releases/latest');
       const data = await res.json();
+
       if (data.tag_name !== appVersion) {
         updateData = { tag: data.tag_name, body: data.body };
         showUpdateModal = true;
+      } else {
+        showSuccessToast = true;
+        setTimeout(() => {
+          showSuccessToast = false;
+        }, 3000);
       }
     } catch (e) {
       console.error(e);
@@ -74,7 +90,7 @@
     <div class="setting-row">
       <div class="info">
         <div class="label-group">
-          <span class="label">Java Runtime 25</span>
+          <span class="label">Java Runtime</span>
           <button class="folder-btn" on:click={selectJavaPath}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           </button>
@@ -127,12 +143,23 @@
       </div>
     </div>
   {/if}
+
+  {#if showSuccessToast}
+    <div
+      transition:fly={{ y: 20, duration: 300 }}
+      class="toast-notification"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+      Обновлений не найдено
+    </div>
+  {/if}
 </div>
 
 <style>
   .profiles-container {
     color: #fff;
-    font-family: 'Inter', sans-serif;
     background: #181818;
     width: 90%;
     height: 80%;
@@ -161,6 +188,24 @@
     border-radius: 16px;
     border: 1px solid #282828;
   }
+
+  .toast-notification {
+    position: absolute;
+    bottom: 25px;
+    right: 25px;
+    background: #1a2a1d;
+    color: #4caf50;
+    border: 1px solid #243a28;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+  }
+
 
   .setting-row.vertical { flex-direction: column; align-items: stretch; gap: 14px; }
   .label-group { display: flex; align-items: center; gap: 10px; }

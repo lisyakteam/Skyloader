@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { type } from '@tauri-apps/plugin-os';
+import { platform } from '@tauri-apps/plugin-os';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { myBuilds, config, accounts, launchInfo } from '$lib/stores.js';
@@ -75,8 +75,8 @@ export async function launchGame() {
 const createBatAndFire = async (setScreenBlocker, currentConfig, build, account, instanceDir, gameDir, manifest, libs, clientClass) => {
     await invoke('mkdir', { path: instanceDir })
 
-    const os = {'linux':'linux','Windows_NT':'windows','Darwin':'macos'}[await type()]
-    const cpSeparator = {'linux':':','Windows_NT':';','Darwin':';'}[await type()]
+    const os = await platform();
+    const cpSeparator = {'linux':':','windows':';','macos':';'}[await platform()]
 
     const gameVersion = manifest.id
     const assetsIndex = manifest.assets

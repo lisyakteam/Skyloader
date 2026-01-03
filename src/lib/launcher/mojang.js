@@ -1,5 +1,5 @@
 import { fetch } from '@tauri-apps/plugin-http';
-import { arch, type } from '@tauri-apps/plugin-os';
+import { arch, platform } from '@tauri-apps/plugin-os';
 import { invoke } from '@tauri-apps/api/core';
 import { exists, mkdir, writeTextFile, readTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 import { join, appDataDir } from '@tauri-apps/api/path';
@@ -32,10 +32,10 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
     const list = manifest.libraries
     const libPath = await appDataDir() + "/libraries/"
 
-    const [ _type, _arch ] = [ await type(), await arch() ]
+    const [ _type, _arch ] = [ await platform(), await arch() ]
     console.log('Type / arch:', _type, _arch)
 
-    const __type = {'linux':'(linux)','Windows_NT':'(windows)','Darwin':'(macos|osx)'}[_type];
+    const __type = {'linux':'(linux)','windows':'(windows)','macos':'(macos|osx)'}[_type];
 
     const __arch = {
         'x86':'(x86)',

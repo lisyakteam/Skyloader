@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import { slide, fade } from 'svelte/transition';
-  import { myBuilds, config, accounts, saveConfigToDisk } from '$lib/stores.js';
+  import { myBuilds, config, accounts } from '$lib/stores.js';
   import { launchGame } from '$lib/launcher/loader.js';
 
   $: buildIndex = $myBuilds.findIndex(b => b.instanceId === $config.lastInstanceId);
@@ -36,11 +36,7 @@
   }
 
   function selectAccount(index) {
-    config.update(c => {
-      const n = { ...c, selectedAccountIndex: index };
-      saveConfigToDisk(n);
-      return n;
-    });
+    config.update(c => ({ ...c, selectedAccountIndex: index }));
     isMenuOpen = false;
   }
 
@@ -48,10 +44,7 @@
     if ($myBuilds.length === 0) return;
     const nextIdx = (activeIdx + step + $myBuilds.length) % $myBuilds.length;
     const nextId = $myBuilds[nextIdx].instanceId;
-    config.update(c => {
-        const n = { ...c, lastInstanceId: nextId };
-        return n;
-    });
+    config.update(c => ({ ...c, lastInstanceId: nextId }));
   }
 </script>
 

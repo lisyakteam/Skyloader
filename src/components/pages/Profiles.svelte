@@ -1,5 +1,5 @@
 <script>
-  import { accounts, config, saveConfigToDisk } from '$lib/stores.js';
+  import { accounts, config } from '$lib/stores.js';
   import { fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
 
@@ -18,9 +18,7 @@
       const filtered = all.filter((_, i) => i !== index);
       if ($config.selectedAccountIndex >= filtered.length) {
         config.update(c => {
-          const n = { ...c, selectedAccountIndex: Math.max(0, filtered.length - 1) };
-          saveConfigToDisk(n);
-          return n;
+          return { ...c, selectedAccountIndex: Math.max(0, filtered.length - 1) };
         });
       }
       return filtered;
@@ -29,9 +27,7 @@
 
   function select(index) {
     config.update(c => {
-      const n = { ...c, selectedAccountIndex: index };
-      saveConfigToDisk(n);
-      return n;
+      return { ...c, selectedAccountIndex: index };
     });
   }
 </script>

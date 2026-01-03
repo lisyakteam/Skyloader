@@ -11,16 +11,6 @@ export const config = writable();
 
 export const launchInfo = writable(null);
 
-export async function saveConfigToDisk(data) {
-    try {
-        await writeTextFile(CONFIG_FILE, JSON.stringify(data, null, 4), {
-            baseDir: BaseDirectory.AppData
-        });
-    } catch (e) {
-        console.error("Ошибка сохранения конфига:", e);
-    }
-}
-
 config.subscribe(async data => {
     console.log('config', data)
     if (data === undefined) {

@@ -97,38 +97,57 @@ fn check_java_version(path: String) -> bool {
 }
 
 #[tauri::command]
-fn find_system_java(app: tauri::AppHandle) -> Option<String> {
-    let mut potential_paths = Vec::new();
-
-    if let Ok(java_home) = env::var("JAVA_HOME") {
-        potential_paths.push(PathBuf::from(java_home).join("bin").join("javaw.exe"));
+fn find_system_java() -> Option<String> {
+    if let Some(path) = find_java_in_path() {
+        return Some(path);
     }
 
-    let path_buf = app.path().app_data_dir().unwrap();
-    let path_str = path_buf.to_str().unwrap();
+    if let Ok(java_home) = env::var("JAVA_HOME") {
+        let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
+        let path = PathBuf::from(java_home).join("bin").join(bin_name);
+        if path.exists() {
+            return Some(path.to_string_lossy().into_owned());
+        }
+    }
 
-    let common_dirs = [
-        "C:\\Program Files\\Eclipse Adoptium",
-        "C:\\Program Files\\Java",
-        "C:\\Program Files\\BellSoft",
-        path_str,
-    ];
+    #[cfg(target_os = "windows")]
+    {
+        let common_dirs = [
+            "C:\\Program Files\\Eclipse Adoptium",
+            "C:\\Program Files\\Java",
+            "C:\\Program Files\\BellSoft",
+        ];
 
-    for dir in common_dirs {
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path().join("bin").join("javaw.exe");
-                potential_paths.push(path);
+        for dir in common_dirs {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path().join("bin").join("java.exe");
+                    if path.exists() {
+                        return Some(path.to_string_lossy().into_owned());
+                    }
+                }
             }
         }
     }
 
-    for path in potential_paths {
-        if path.exists() {
-            let path_str = path.to_string_lossy().to_string();
-            if check_java_version(path_str.clone()) {
-                return Some(path_str);
-            }
+    None
+}
+
+fn find_java_in_path() -> Option<String> {
+    let cmd = if cfg!(windows) { "where" } else { "which" };
+
+    let output = Command::new(cmd)
+    .arg("java")
+    .output()
+    .ok()?;
+
+    if output.status.success() {
+        let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        let first_path = path_str.lines().next()?.to_string();
+
+        if Path::new(&first_path).exists() {
+            return Some(first_path);
         }
     }
     None
@@ -372,8 +391,7 @@ async fn write_executable(path: String, data: String) -> Result<String, ()> {
 
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o711))?;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o711)).unwrap();
     }
 
 

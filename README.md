@@ -37,4 +37,4 @@ bun tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc
 ```
 
 ## Лицензия
-[MIT](https://lisyakteam/skyloader/blob/main/LICENSE)
+[MIT](https://github.com/lisyakteam/skyloader/blob/main/LICENSE)
