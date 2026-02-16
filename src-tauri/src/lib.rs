@@ -16,8 +16,6 @@ use std::fs::File;
 use std::io::Read;
 use std::env;
 
-use tauri::Manager;
-
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 

@@ -3,6 +3,8 @@
   import { slide, fade } from 'svelte/transition';
   import { myBuilds, config, accounts } from '$lib/stores.js';
   import { launchGame } from '$lib/launcher/loader.js';
+  import { getSkin } from '$lib/utils/skins.js';
+  import PlayerHead from '$components/PlayerHead.svelte';
 
   $: buildIndex = $myBuilds.findIndex(b => b.instanceId === $config.lastInstanceId);
   $: activeIdx = buildIndex !== -1 ? buildIndex : 0;
@@ -11,6 +13,7 @@
 
   let isMenuOpen = false;
   let skinViewer;
+  let skinUrl;
 
   onMount(() => {
     if (!window.skinview3d) {
@@ -22,17 +25,23 @@
   });
 
   $: if (skinViewer && currentAccount) {
-    skinViewer.loadSkin(`https://minotar.net/skin/${currentAccount.name}`);
+    getSkin(currentAccount.name).then(url => {
+      skinUrl = url;
+      skinViewer.loadSkin(url)
+      console.log('updated 1')
+    });
   }
 
   function init3D() {
-    const canvas = document.getElementById("skin_canvas");
-    if (!canvas) return;
-    skinViewer = new skinview3d.SkinViewer({
-      canvas, width: 260, height: 380,
-      skin: `https://minotar.net/skin/${currentAccount.name}`
-    });
-    skinViewer.animation = new skinview3d.IdleAnimation();
+    getSkin(currentAccount.name).then(url => {
+      const canvas = document.getElementById("skin_canvas");
+      if (!canvas) return;
+      skinViewer = new skinview3d.SkinViewer({
+        canvas, width: 260, height: 380,
+        skin: url
+      });
+      skinViewer.animation = new skinview3d.IdleAnimation();
+    })
   }
 
   function selectAccount(index) {
@@ -54,7 +63,7 @@
     <div class="right-panel">
       <div class="section-account">
         <button class="acc-btn" on:click={() => isMenuOpen = !isMenuOpen}>
-          <img src="https://minotar.net/helm/{currentAccount.name}/16.png" alt="">
+          <PlayerHead username={currentAccount.name}/>
           <span>{currentAccount.name}</span>
           <span class="arrow">{isMenuOpen ? '▲' : '▼'}</span>
         </button>

@@ -5,6 +5,7 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import { onMount } from 'svelte';
   import { checkOrInstallJava } from '$lib/launcher/java.js';
+  import { openPath, openUrl } from '@tauri-apps/plugin-opener';
   import { fly } from 'svelte/transition';
 
   let totalSystemRam = 16384;
@@ -70,7 +71,7 @@
       const data = await res.json();
 
       if (data.tag_name !== appVersion) {
-        updateData = { tag: data.tag_name, body: data.body };
+        updateData = { tag: data.tag_name, url: data.html_url, body: data.body };
         showUpdateModal = true;
       } else {
         showSuccessToast = true;
@@ -134,10 +135,10 @@
   {#if showUpdateModal}
     <div class="modal">
       <div class="modal-box">
-        <h3>Обновление {updateData.tag}</h3>
+        <h3>Версия v{updateData.tag}</h3>
         <div class="changelog">{updateData.body || ''}</div>
         <div class="modal-btns">
-          <button class="btn btn-blue">Загрузить</button>
+          <button class="btn btn-blue" on:click={() => openUrl(updateData.url)}>Загрузить</button>
           <button class="btn btn-gray" on:click={() => showUpdateModal = false}>Позже</button>
         </div>
       </div>

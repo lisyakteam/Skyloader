@@ -14,6 +14,14 @@
         }
       ]
     },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://**"
+        }
+      ]
+    },
     "fs:default",
     {
       "identifier": "http:default",

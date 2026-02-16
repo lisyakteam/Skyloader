@@ -1,5 +1,5 @@
-<h1 align="center">SkyLoader</h1>
-<p align="center"><b>Эксперементальный мультиплатформенный лаунчер для Minecraft (и - в будущем - других игр)</b></p>
+<h1 align="center">Skyloader</h1>
+<p align="center"><b>Мультиплатформенный лаунчер проекта Lisyak</b></p>
 
 <div align="center">
 <img src="https://img.shields.io/badge/MIT-green?style=for-the-badge"/>
@@ -17,7 +17,7 @@
 
 ## В планах
 - Поддержка лицензионных аккаунтов
-- Поддержка Forge (возможно? Не точно! Forge устарел)
+- Больше кастомизаций и настроек
 - Исправления ошибок и внешнего вида
 
 ## Разработка

@@ -1,12 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
-import { type } from '@tauri-apps/plugin-os'; // Добавь этот плагин
+import { platform } from '@tauri-apps/plugin-os'; // Добавь этот плагин
 import { exists, mkdir, remove } from '@tauri-apps/plugin-fs';
 import { join, appDataDir } from '@tauri-apps/api/path';
 import { config, launchInfo } from '$lib/stores.js';
 import { listen } from '@tauri-apps/api/event'
 
 async function getJavaConfig() {
-    const osType = await type(); // 'windows', 'linux', 'macos'
+    const osType = await platform(); // 'windows', 'linux', 'macos'
     if (osType === 'windows') {
         return {
             url: "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.1%2B8/OpenJDK25U-jre_x64_windows_hotspot_25.0.1_8.zip",
@@ -23,13 +23,17 @@ async function getJavaConfig() {
 }
 
 export async function checkOrInstallJava() {
+    launchInfo.set("Начинаем загрузку Java 25.")
     const javaCfg = await getJavaConfig();
     const appDir = await appDataDir();
-    const runtimeDir = await join(appDir, 'runtime');
+    launchInfo.set("Начинаем загрузку Java 25..")
+    const runtimeDir = await join(appDir, 'java');
     const executablePath = await join(runtimeDir, ...javaCfg.binPath);
 
+    launchInfo.set("Начинаем загрузку Java 25...")
     if (await exists(executablePath)) {
         if (await invoke('check_java_version', { path: executablePath })) {
+            launchInfo.set("Java уже установлена!")
             updateConfig(executablePath);
             return true;
         }
@@ -52,7 +56,7 @@ export async function checkOrInstallJava() {
         await invoke("unpack", { from: archivePath, to: runtimeDir });
         await remove(archivePath);
 
-        if (await type() !== 'windows') {
+        if (await platform() !== 'windows') {
             await invoke('make_executable', { path: executablePath });
         }
 
@@ -69,9 +73,5 @@ export async function checkOrInstallJava() {
 }
 
 function updateConfig(path) {
-    config.update(c => {
-        const nc = { ...c, javaPath: path, javaVersion: 25 };
-        saveConfigToDisk(nc);
-        return nc;
-    });
+    config.update(c => ({ ...c, javaPath: path, javaVersion: 25 }));
 }

@@ -8,7 +8,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { myBuilds, config } from '$lib/stores.js';
 
-  const API_URL = "https://лисяк.рф/launcher";
+  const API_URL = "https://lisyak.net/launcher";
   const MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 
   let communityBuilds = [];

@@ -3,6 +3,8 @@
   import { fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
 
+  import PlayerHead from '$components/PlayerHead.svelte';
+
   let newName = '';
   let showAddModal = false;
 
@@ -48,7 +50,7 @@
         on:click={() => select(i)}
       >
         <div class="card-content">
-          <img src="https://minotar.net/helm/{acc.name}/64" alt="">
+          <PlayerHead username={acc.name}/>
           <div class="info">
             <span class="name">{acc.name}</span>
             <span class="type">{acc.type}</span>
