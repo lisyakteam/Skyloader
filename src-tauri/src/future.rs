@@ -1,3 +1,4 @@
+/* функционал для мода на войсчат и вебку в игре */
 
 /*struct CameraState {
  * stop_flag: Arc<AtomicBool>,

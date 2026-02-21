@@ -79,19 +79,26 @@ fn make_executable(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn check_java_version(path: String) -> bool {
+fn get_java_version(path: String) -> Result<String, String> {
     let output = std::process::Command::new(&path)
     .arg("-version")
-    .output();
+    .output()
+    .map_err(|e| e.to_string())?;
 
-    match output {
-        Ok(out) => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            stderr.contains("25") || stdout.contains("25")
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    for line in stderr.lines() {
+        if line.contains("version") {
+            if let Some(start) = line.find('"') {
+                if let Some(end) = line[start + 1..].find('"') {
+                    let version = line[start + 1..start + 1 + end].to_string();
+                    return Ok(version);
+                }
+            }
         }
-        Err(_) => false,
     }
+
+    Err("Не удалось определить версию Java".into())
 }
 
 #[tauri::command]
@@ -510,7 +517,7 @@ pub fn run() {
             get_not_installed,
             download_many,
             large_download,
-            check_java_version,
+            get_java_version,
             get_total_ram,
             find_system_java,
             make_executable,

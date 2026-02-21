@@ -13,10 +13,8 @@ export async function getLatestUpdate() {
 }
 
 export async function fetchUpdate() {
-    console.log('checking')
 
     const data = get(updateData)
-    console.log(data)
     if (data) return data;
 
     const update = await getLatestUpdate();

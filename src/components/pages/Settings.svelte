@@ -18,6 +18,7 @@
   let isJavaValid = false;
   let updateData = { tag: '', body: '' };
   let showUpdateModal = false;
+  let javaVersion = null
 
   $: renderedChangelog = updateData?.body
     ? DOMPurify.sanitize(marked.parse(updateData.body))
@@ -49,7 +50,15 @@
 
   async function validateJava() {
     if ($config.javaPath) {
-      isJavaValid = await invoke('check_java_version', { path: $config.javaPath });
+      javaVersion = await invoke('get_java_version', { path: $config.javaPath });
+      console.log(javaVersion)
+      isJavaValid = javaVersion && +javaVersion.slice(0, 2) >= 25
+
+      if (javaVersion) {
+        if (+javaVersion.slice(0, 2) < 25)
+            showToast("Нужна Java 25 и выше, у вас — " + javaVersion + "!", "error");
+      }
+      else showToast("Не удалось найти Java, укажите путь в настройках!", "error");
     } else {
       isJavaValid = false;
     }
@@ -88,7 +97,7 @@
     <div class="setting-row">
       <div class="info">
         <div class="label-group">
-          <span class="label">Java Runtime</span>
+          <span class="label">Java Runtime { javaVersion || "не определена" }</span>
           <button class="folder-btn" on:click={selectJavaPath}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           </button>
