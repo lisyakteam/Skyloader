@@ -1,22 +1,30 @@
 <script>
-  import { config } from '$lib/stores.js';
   import { invoke } from '@tauri-apps/api/core';
-  import { getVersion } from '@tauri-apps/api/app';
   import { open } from '@tauri-apps/plugin-dialog';
   import { onMount } from 'svelte';
-  import { checkOrInstallJava } from '$lib/launcher/java.js';
+  import { get } from 'svelte/store';
   import { openPath, openUrl } from '@tauri-apps/plugin-opener';
   import { fly } from 'svelte/transition';
 
+  import { config } from '$lib/stores.js';
+  import { checkOrInstallJava } from '$lib/launcher/java.js';
+  import { appVersion, fetchUpdate } from '$lib/utils/updater.js';
+  import { showToast } from '$lib/utils/toasts.js';
+
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
+
   let totalSystemRam = 16384;
-  let appVersion = "1.0.0";
   let isJavaValid = false;
-  let showUpdateModal = false;
   let updateData = { tag: '', body: '' };
+  let showUpdateModal = false;
+
+  $: renderedChangelog = updateData?.body
+    ? DOMPurify.sanitize(marked.parse(updateData.body))
+    : '';
 
   onMount(async () => {
     totalSystemRam = await invoke('get_total_ram');
-    appVersion = await getVersion();
 
     if ($config.ram > totalSystemRam) $config.ram = totalSystemRam;
 
@@ -27,6 +35,7 @@
         saveConfigToDisk();
       }
     }
+
     await validateJava();
   });
 
@@ -61,27 +70,15 @@
       saveConfigToDisk();
       await validateJava();
     }
+    else showToast('Обновлений не найдено!')
   }
 
-  let showSuccessToast = false;
-
   async function checkUpdates() {
-    try {
-      const res = await fetch('https://api.github.com/repos/lisyakteam/skyloader/releases/latest');
-      const data = await res.json();
+    const update = await fetchUpdate();
 
-      if (data.tag_name !== appVersion) {
-        updateData = { tag: data.tag_name, url: data.html_url, body: data.body };
-        showUpdateModal = true;
-      } else {
-        showSuccessToast = true;
-        setTimeout(() => {
-          showSuccessToast = false;
-        }, 3000);
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    if (update.tag_name !== get(appVersion))
+      showUpdateModal = true;
+      updateData = update;
   }
 </script>
 
@@ -106,14 +103,6 @@
       {/if}
     </div>
 
-    <div class="setting-row">
-      <div class="info">
-        <span class="label">Версия SkyLoader</span>
-        <span class="path-text">Проверка новых релизов</span>
-      </div>
-      <button class="btn btn-gray" on:click={checkUpdates}>Обновить</button>
-    </div>
-
     <div class="setting-row vertical">
       <div class="info-row">
         <span class="label">Память (RAM)</span>
@@ -130,30 +119,27 @@
         {$config.disableCatalog ? 'Скрыт' : 'Отображается'}
       </button>
     </div>
+
+    <div class="setting-row">
+      <div class="info">
+        <span class="label">Версия лаунчера { $appVersion }</span>
+      </div>
+      <button class="btn btn-gray" on:click={checkUpdates}>Проверить обновления</button>
+    </div>
   </div>
 
   {#if showUpdateModal}
     <div class="modal">
       <div class="modal-box">
-        <h3>Версия v{updateData.tag}</h3>
-        <div class="changelog">{updateData.body || ''}</div>
+        <p class="launcher-version">Версия {updateData.name}</p>
+        <div class="changelog">
+          {@html renderedChangelog}
+        </div>
         <div class="modal-btns">
-          <button class="btn btn-blue" on:click={() => openUrl(updateData.url)}>Загрузить</button>
+          <button class="btn btn-blue" on:click={() => openUrl(updateData.html_url)}>Загрузить</button>
           <button class="btn btn-gray" on:click={() => showUpdateModal = false}>Позже</button>
         </div>
       </div>
-    </div>
-  {/if}
-
-  {#if showSuccessToast}
-    <div
-      transition:fly={{ y: 20, duration: 300 }}
-      class="toast-notification"
-    >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-      Обновлений не найдено
     </div>
   {/if}
 </div>
@@ -190,23 +176,6 @@
     border: 1px solid #282828;
   }
 
-  .toast-notification {
-    position: absolute;
-    bottom: 25px;
-    right: 25px;
-    background: #1a2a1d;
-    color: #4caf50;
-    border: 1px solid #243a28;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    z-index: 100;
-  }
-
 
   .setting-row.vertical { flex-direction: column; align-items: stretch; gap: 14px; }
   .label-group { display: flex; align-items: center; gap: 10px; }
@@ -234,9 +203,20 @@
   }
   .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: #fff; border-radius: 50%; }
 
-  .modal { position: absolute; inset: 0; background: #000000f0; display: flex; align-items: center; justify-content: center; z-index: 50; }
-  .modal-box { background: #181818; padding: 25px; border-radius: 20px; border: 1px solid #333; width: 300px; text-align: center; }
-  .changelog { background: #111; padding: 10px; border-radius: 10px; font-size: 12px; color: #777; margin: 15px 0; max-height: 80px; overflow-y: auto; }
+  .modal { position: absolute; inset: 0; background: #00000090; display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal-box { background: #181818; padding: 10px 0; border-radius: 15px; border: 1px solid #333; width: 450px; text-align: center; }
+  .modal-btns {
+    display: flex;
+    justify-content: end;
+    gap: 10px;
+    margin: 10px;
+  }
+  .changelog { background: #111; padding: 0 20px; font-size: 12px; color: #ccc; margin: 20px 0; max-height: 150px; text-align: initial; overflow-y: auto; }
+  .launcher-version {
+    margin: 0;
+    margin-top: 10px;
+    font-weight: 700;
+  }
 
   .blocker { position: absolute; inset: 0; background: #000000cc; display: flex; align-items: center; justify-content: center; z-index: 100; }
   .spinner { width: 24px; height: 24px; border: 3px solid #333; border-top-color: #007aff; border-radius: 50%; animation: spin 0.8s linear infinite; }

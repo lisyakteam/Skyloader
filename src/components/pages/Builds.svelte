@@ -406,6 +406,7 @@
 
           <textarea class="edit-area" bind:value={editData.description}></textarea>
           <div class="edit-grid">
+            <div class="row">
             <div class="field">Версия игры:
               <select bind:value={editData.gameVersion}>
                 {#each mcVersions as v}<option value={v}>{v}</option>{/each}
@@ -417,9 +418,12 @@
                 <option value="vanilla">Vanilla</option>
               </select>
             </div>
+            </div>
+            <div class="row">
             {#if selectedItem.manifest === false}
               <div class="field">Версия сборки: <input class="small-input" bind:value={editData.version} /></div>
             {/if}
+            </div>
           </div>
 
           { :else }
@@ -546,7 +550,7 @@
   }
 
   .sidebar {
-    width: 280px;
+    width: 220px;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
     display: flex;
@@ -557,7 +561,7 @@
 
   .tabs {
     display: flex;
-    gap: 8px;
+    gap: 0px;
     background: #000;
     padding: 5px;
     border-radius: 10px;
@@ -569,7 +573,7 @@
     background: transparent;
     border: none;
     color: var(--text-dim);
-    padding: 10px;
+    padding: 6px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
@@ -588,12 +592,12 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   }
 
   .build-card {
     background: var(--bg-card);
-    padding: 15px;
+    padding: 12px 15px;
     border-radius: 10px;
     cursor: pointer;
     border: 1px solid transparent;
@@ -795,7 +799,7 @@
   .update-banner {
     background: rgba(59, 93, 167, 0.1);
     border: 1px solid var(--blue);
-    padding: 15px;
+    padding: 10px 15px;
     border-radius: 10px;
     display: flex;
     justify-content: space-between;

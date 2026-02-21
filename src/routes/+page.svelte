@@ -3,6 +3,8 @@
   import { listen } from '@tauri-apps/api/event';
   import { slide, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import { get } from 'svelte/store';
+  import { onMount } from 'svelte';
   
   import PageCard from '../components/PageCard.svelte';
   import Game from '../components/pages/Game.svelte';
@@ -11,8 +13,11 @@
   import Profiles from '../components/pages/Profiles.svelte';
   import Settings from '../components/pages/Settings.svelte';
   import BackgroundEffects from '../components/BackgroundEffects.svelte';
+  import Toasts from '../components/Toasts.svelte';
 
   import { config, myBuilds, accounts, launchInfo } from '$lib/stores.js';
+  import { fetchUpdate } from '$lib/utils/updater.js';
+  import { showToast } from '$lib/utils/toasts.js';
 
   let pages = [
     { name: 'Сервера', component: Servers },
@@ -24,28 +29,28 @@
   pages = pages.map((x, i) => { return { ...x, index: i } })
 
   function springOut(t) {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-}
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  }
 
-function slideFade(node, params) {
-  const delay = params.delay || 0;
-  const duration = params.duration || 100;
-  const easing = params.easing || springOut;
+  function slideFade(node, params) {
+    const delay = params.delay || 0;
+    const duration = params.duration || 100;
+    const easing = params.easing || springOut;
 
-  return {
-    delay,
-    duration,
-    css: (t, u) => {
-      const eased = easing(t);
-      return `
-        transform: translateY(${(1 - eased) * 20}px);
-        opacity: ${eased};
-      `;
-    }
-  };
-}
+    return {
+      delay,
+      duration,
+      css: (t, u) => {
+        const eased = easing(t);
+        return `
+          transform: translateY(${(1 - eased) * 20}px);
+          opacity: ${eased};
+        `;
+      }
+    };
+  }
   
   // функция вычисления задержки по индексу: центр = 0, дальше = +/-
   function buttonDelay(index) {
@@ -76,18 +81,9 @@ function slideFade(node, params) {
     hoverIndex = null;
   }
 
-  const get = async() => {
-      console.log('start')
-      await invoke("stop_camera")
-      await invoke("start_camera")
-      const unlisten = await listen('camera_frame', (event) => {
-        const frame = event.payload;
-        drawFrame(frame);
-      });
-  }
   $: visiblePages = visible ? pages : [];
 
-  console.log($accounts, $config)
+  onMount(fetchUpdate)
 
 </script>
 
@@ -135,6 +131,8 @@ function slideFade(node, params) {
     {/each}
   </div>
 </div>
+
+<Toasts />
 <BackgroundEffects />
 
 <style>
@@ -185,7 +183,7 @@ function slideFade(node, params) {
     right: 0;
     bottom: 0;
     height: 80px;
-    z-index: 9999;
+    z-index: 500;
     pointer-events: auto;
   }
 
