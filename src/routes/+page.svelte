@@ -175,6 +175,7 @@
     justify-content: center;
     align-items: center;
     z-index: 1;
+    overflow: hidden;
   }
 
   .hover-wrapper {

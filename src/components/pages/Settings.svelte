@@ -5,6 +5,7 @@
   import { get } from 'svelte/store';
   import { openPath, openUrl } from '@tauri-apps/plugin-opener';
   import { fly } from 'svelte/transition';
+  import { fade, scale } from 'svelte/transition';
 
   import { config } from '$lib/stores.js';
   import { checkOrInstallJava } from '$lib/launcher/java.js';
@@ -79,15 +80,21 @@
       saveConfigToDisk();
       await validateJava();
     }
-    else showToast('Обновлений не найдено!')
   }
 
   async function checkUpdates() {
     const update = await fetchUpdate();
 
-    if (update.tag_name !== get(appVersion))
+    if (update.tag_name !== get(appVersion)) {
       showUpdateModal = true;
       updateData = update;
+    }
+    else showToast('Обновлений не найдено!')
+  }
+
+  function openRelease(url) {
+    showUpdateModal = false;
+    openUrl(url);
   }
 </script>
 
@@ -131,22 +138,30 @@
 
     <div class="setting-row">
       <div class="info">
-        <span class="label">Версия лаунчера { $appVersion }</span>
+        <span class="label">Текущая версия: { $appVersion }</span>
       </div>
       <button class="btn btn-gray" on:click={checkUpdates}>Проверить обновления</button>
     </div>
   </div>
 
   {#if showUpdateModal}
-    <div class="modal">
+    <div
+    transition:fade={{duration: 100}}
+    class="modal">
       <div class="modal-box">
-        <p class="launcher-version">Версия {updateData.name}</p>
+        <p class="launcher-version">Обновленная версия</p>
         <div class="changelog">
           {@html renderedChangelog}
         </div>
+        <div class="row">
+        <div class="uploader">
+          <img src={updateData.author.avatar_url}/>
+          <a>@{updateData.author.login}</a>
+        </div>
         <div class="modal-btns">
-          <button class="btn btn-blue" on:click={() => openUrl(updateData.html_url)}>Загрузить</button>
+          <button class="btn btn-blue" on:click={() => openRelease(updateData.html_url)}>Перейти на сайт</button>
           <button class="btn btn-gray" on:click={() => showUpdateModal = false}>Позже</button>
+        </div>
         </div>
       </div>
     </div>
@@ -220,11 +235,30 @@
     gap: 10px;
     margin: 10px;
   }
-  .changelog { background: #111; padding: 0 20px; font-size: 12px; color: #ccc; margin: 20px 0; max-height: 150px; text-align: initial; overflow-y: auto; }
+  .changelog { background: #111; padding: 0 20px; font-size: 12px; color: #ccc; margin: 20px 0; max-height: 200px; text-align: initial; overflow-y: auto; }
   .launcher-version {
     margin: 0;
     margin-top: 10px;
     font-weight: 700;
+  }
+  .row {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    flex: 1;
+    justify-content: space-between;
+  }
+  .uploader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 12px;
+    cursor: pointer;
+  }
+  .uploader img {
+    width: 32px;
+    border-radius: 50%;
   }
 
   .blocker { position: absolute; inset: 0; background: #000000cc; display: flex; align-items: center; justify-content: center; z-index: 100; }

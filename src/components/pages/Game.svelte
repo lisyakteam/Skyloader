@@ -28,7 +28,6 @@
     getSkin(currentAccount.name).then(url => {
       skinUrl = url;
       skinViewer.loadSkin(url)
-      console.log('updated 1')
     });
   }
 
@@ -55,24 +54,42 @@
     const nextId = $myBuilds[nextIdx].instanceId;
     config.update(c => ({ ...c, lastInstanceId: nextId }));
   }
+
+  function clickOutside(node) {
+    const handleClick = (event) => {
+      if (node && !node.contains(event.target) && !event.defaultPrevented) {
+        node.dispatchEvent(new CustomEvent('click_outside'));
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+    return {
+      destroy() { document.removeEventListener('click', handleClick, true); }
+    };
+  }
+
 </script>
 
 <div class="center-wrapper">
 <div class="launcher-card">
     <div class="left-panel"><canvas id="skin_canvas"></canvas></div>
     <div class="right-panel">
-      <div class="section-account">
+      <div class="section-account"
+          use:clickOutside
+          on:click_outside={() => isMenuOpen = false}>
         <button class="acc-btn" on:click={() => isMenuOpen = !isMenuOpen}>
           <PlayerHead username={currentAccount.name}/>
           <span>{currentAccount.name}</span>
           <span class="arrow">{isMenuOpen ? '▲' : '▼'}</span>
         </button>
         {#if isMenuOpen}
-          <div class="dropdown-list" transition:slide={{ duration: 200 }}>
+          <div
+          class="dropdown-list"
+          transition:slide={{ duration: 200 }}>
             <div class="list-scroll">
               {#each ($accounts || []) as acc, i}
                 <div class="list-item" class:sel={i === $config.selectedAccountIndex} on:click={() => selectAccount(i)}>
-                  <img src="https://minotar.net/helm/{acc.name}/16.png" alt="">
+                   <PlayerHead username={acc.name}/>
                   {acc.name}
                 </div>
               {/each}
@@ -114,8 +131,7 @@
     background: #181818;
     border-radius: 16px;
     border: 1px solid #333; display: flex;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-    overflow: hidden;
+    box-shadow: 0 10px 10px rgba(0,0,0,0.6);
   }
 
   .left-panel {
@@ -143,10 +159,21 @@
   .arrow { margin-left: auto; font-size: 10px; color: #666; }
 
   .dropdown-list {
-    position: absolute; top: 100%; left: 0; width: 100%;
+    position: absolute;
+    top: -5px;
+    left: 0;
+    z-index: 100;
+    overflow-y: auto;
+    max-height: 250px;
     background: #1f1f1f; border: 1px solid #333;
-    border-radius: 10px; margin-top: 5px; overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border-radius: 10px; margin-top: 5px;
+  }
+  .dropdown-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .dropdown-list::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 10px;
   }
   .list-item {
     padding: 10px 15px; display: flex; align-items: center; gap: 10px;

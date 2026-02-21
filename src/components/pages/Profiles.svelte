@@ -64,7 +64,7 @@
   </div>
 
   {#if showAddModal}
-    <div class="modal-overlay" transition:fade={{duration: 150}} on:click|self={() => showAddModal = false}>
+    <div class="modal-overlay" transition:fade={{duration: 200}} on:click|self={() => showAddModal = false}>
       <div class="modal" transition:scale={{duration: 200, start: 0.95}}>
         <h2>Новый аккаунт</h2>
         <input

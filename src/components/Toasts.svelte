@@ -3,7 +3,30 @@
   import { flip } from 'svelte/animate';
   import { fly, slide } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
+
+  let hoveredId = null;
+
+  function handleMouseMove(e) {
+    const elements = document.querySelectorAll('.toast-card');
+    let found = null;
+
+    elements.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      if (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        found = el.dataset.id;
+      }
+    });
+
+    hoveredId = found;
+  }
 </script>
+
+<svelte:window on:mousemove={handleMouseMove} />
 
 <div class="toasts-wrapper">
   {#each $toasts as toast (toast.id)}
@@ -16,6 +39,8 @@
         in:fly={{ x: 50, duration: 300, easing: quintOut }}
         out:fly={{ x: 50, opacity: 0, duration: 300 }}
         class="toast-card toast-{toast.type}"
+        class:is-hovered={hoveredId === String(toast.id)}
+        data-id={toast.id}
       >
         <div class="toast-icon-box">
           {#if toast.type === 'error'}
@@ -47,8 +72,8 @@
     flex-direction: column;
     justify-content: flex-end;
     z-index: 9999;
-    pointer-events: none;
     align-items: flex-end;
+    pointer-events: none;
   }
 
   .toast-container {
@@ -59,7 +84,8 @@
   }
 
   .toast-card {
-    pointer-events: auto;
+    pointer-events: none;
+
     display: flex;
     align-items: stretch;
     background: #1a2a1d;
@@ -71,6 +97,11 @@
     max-width: 400px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
     flex-shrink: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .toast-card.is-hovered {
+    opacity: 0.4;
   }
 
   .toast-icon-box {
@@ -82,6 +113,7 @@
     padding: 0 14px;
     color: #4caf50;
   }
+
   .toast-content {
     padding: 14px 18px;
     color: #4caf50;
@@ -89,6 +121,7 @@
     font-weight: 600;
     line-height: 1.4;
   }
+
   .toast-error { background: #2a1a1a; border: 1px solid #3a2924; }
   .toast-error .toast-content { color: #af4c4c; }
   .toast-error .toast-icon-box { background: rgba(175, 76, 76, 0.1); color: #af4c4c; border-right-color: #3a2924; }
