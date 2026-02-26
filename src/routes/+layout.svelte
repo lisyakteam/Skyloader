@@ -11,6 +11,7 @@
     let activePlayer = 1;
     let transitioning = false;
     let firstVideoLoaded = false;
+    let rafId;
     const fadeTime = 2000;
 
     async function getCachedVideo(entry) {
@@ -36,13 +37,43 @@
         }
     }
 
+    function checkTime() {
+        const currentPlayer = activePlayer === 1 ? v1 : v2;
+
+        if (currentPlayer && currentPlayer.duration) {
+            const triggerTime = currentPlayer.duration - (fadeTime / 1000);
+
+            if (currentPlayer.currentTime >= triggerTime && !transitioning) {
+                transitioning = true;
+                swapPlayers();
+            }
+        }
+        rafId = requestAnimationFrame(checkTime);
+    }
+
+    function swapPlayers() {
+        const nextPlayer = activePlayer === 1 ? v2 : v1;
+        const currentPlayer = activePlayer === 1 ? v1 : v2;
+
+        nextPlayer.currentTime = 0;
+        nextPlayer.play().then(() => {
+            activePlayer = activePlayer === 1 ? 2 : 1;
+            setTimeout(() => {
+                currentPlayer.pause();
+                transitioning = false;
+            }, fadeTime);
+        });
+    }
+
     onMount(async () => {
         const entry = await load();
         if (entry.videoUrl) {
             videoSrc = await getCachedVideo(entry);
         }
+        rafId = requestAnimationFrame(checkTime);
 
         return () => {
+            cancelAnimationFrame(rafId);
             if (videoSrc.startsWith('blob:')) {
                 URL.revokeObjectURL(videoSrc);
             }
@@ -51,30 +82,6 @@
 
     function handleInitialLoad() {
         firstVideoLoaded = true;
-    }
-
-    function handleTimeUpdate(e) {
-        const video = e.currentTarget;
-        const triggerTime = video.duration - (fadeTime / 1000);
-
-        if (video.currentTime >= triggerTime && !transitioning) {
-            transitioning = true;
-            swapPlayers();
-        }
-    }
-
-    function swapPlayers() {
-        const nextPlayer = activePlayer === 1 ? v2 : v1;
-        const currentPlayer = activePlayer === 1 ? v1 : v2;
-
-        nextPlayer.currentTime = 0;
-        nextPlayer.play();
-        activePlayer = activePlayer === 1 ? 2 : 1;
-
-        setTimeout(() => {
-            currentPlayer.pause();
-            transitioning = false;
-        }, fadeTime);
     }
 </script>
 
@@ -86,8 +93,8 @@
             autoplay
             muted
             playsinline
+            preload="auto"
             on:loadeddata={handleInitialLoad}
-            on:timeupdate={handleTimeUpdate}
             class:visible={activePlayer === 1 && firstVideoLoaded}
             class="bg-video"
         ></video>
@@ -97,7 +104,7 @@
             src={videoSrc}
             muted
             playsinline
-            on:timeupdate={handleTimeUpdate}
+            preload="auto"
             class:visible={activePlayer === 2}
             class="bg-video"
         ></video>
@@ -115,6 +122,7 @@
         height: 100vh;
         z-index: -1;
         background: black;
+        overflow: hidden;
     }
 
     .bg-video {
@@ -126,6 +134,8 @@
         object-fit: cover;
         opacity: 0;
         transition: opacity 2s ease-in-out;
+        will-change: opacity;
+        transform: translateZ(0);
     }
 
     .bg-video.visible {

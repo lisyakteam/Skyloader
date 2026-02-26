@@ -80,7 +80,7 @@
   left: 0;
   width: 100%;
   height: 200px;
-  background: linear-gradient(to top, rgba(255,255,255,0.15), transparent);
+  background: linear-gradient(to top, rgba(0,0,0,0.15), transparent);
   pointer-events: none;
 }
 </style>
