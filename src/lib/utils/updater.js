@@ -1,6 +1,7 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { writable, get } from 'svelte/store';
 import { showToast } from '$lib/utils/toasts.js';
+import { fetch } from '@tauri-apps/plugin-http';
 
 export async function getLatestUpdate() {
     try {
