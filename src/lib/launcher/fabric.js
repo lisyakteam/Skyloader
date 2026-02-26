@@ -4,38 +4,32 @@ import { exists, writeTextFile, mkdir, BaseDirectory } from '@tauri-apps/plugin-
 import { join, appDataDir } from '@tauri-apps/api/path';
 import { get } from 'svelte/store';
 
-// Импортируем ваши сторы
 import { config, accounts, myBuilds } from '$lib/stores.js';
 
 const MAVEN_URL = "https://maven.fabricmc.net/";
 const FABRIC_META = "https://meta.fabricmc.net/v2/versions/loader/";
-
-let setScreenBlocker;
-
-/**
- * Инициализация лоадера
- */
-const init = (_setScreenBlocker) => {
-    setScreenBlocker = _setScreenBlocker;
-};
 
 const getJSON = async (url) => {
     const res = await fetch(url, { method: 'GET', connectTimeout: 15000 });
     return await res.json();
 };
 
-/**
- * Проверка и скачивание библиотек Fabric
- */
-export const checkLibraries = async (setScreenBlocker, libs, gameVersion) => {
+export const checkLibraries = async (setScreenBlocker, libs, build) => {
     setScreenBlocker(`Проверка библиотек Fabric`);
 
     const appDir = await appDataDir();
     const libPath = "libraries";
 
-    const fmetaURL = `${FABRIC_META}${gameVersion}`;
+    const fmetaURL = `${FABRIC_META}${build.game.version}`;
     const data = await getJSON(fmetaURL);
-    const stable = data[0];
+
+    let stable;
+    if (!build.game.coreVer) stable = data[0];
+    else {
+        const loader = data.find(x => x.loader.version === build.game.coreVer)
+        if (loader) stable = loader;
+        else stable = data[0];
+    }
 
     const fabricLibs = [
         ...stable.launcherMeta.libraries.common,
@@ -74,3 +68,21 @@ export const checkLibraries = async (setScreenBlocker, libs, gameVersion) => {
         libs.push(jar);
     }
 };
+
+const cachedVersion = {
+    id: null
+}
+
+export const getLoaderVersions = async gameVersion => {
+    if (cachedVersion.id === gameVersion) return cachedVersion.data;
+
+    const fmetaURL = `${FABRIC_META}${gameVersion}`;
+    const data = await getJSON(fmetaURL);
+
+    cachedVersion.id = gameVersion;
+    cachedVersion.data = data;
+
+    return data;
+}
+
+

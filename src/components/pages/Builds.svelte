@@ -7,12 +7,17 @@
   import { fetch } from '@tauri-apps/plugin-http';
   import { invoke } from '@tauri-apps/api/core';
   import { myBuilds, config } from '$lib/stores.js';
+  import { getLoaderVersions } from '$lib/launcher/fabric.js';
+
+  import syncModsWithDisk from '$lib/pages/builds/syncModsWithDisk';
+  import getUniqueDirName from '$lib/pages/builds/getUniqueDirName';
 
   const API_URL = "https://lisyak.net/launcher";
   const MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 
   let communityBuilds = [];
   let mcVersions = [];
+  let coreVersions = [];
   let activeTab = 'my';
   let selectedInstanceId = null;
   let selectedVersionId = null;
@@ -21,7 +26,9 @@
   let syncProgress = "";
   let isEditing = false;
 
-  let editData = { name: '', description: '', version: '', core: 'fabric' };
+  /* TODO разгрузить файл */
+
+  let editData = { name: '', description: '', version: '', core: 'fabric', coreVer: '' };
 
   onMount(async () => {
     try {
@@ -69,51 +76,6 @@
     myBuilds.set(loaded);
   }
 
-  async function syncModsWithDisk(build) {
-    try {
-      const modsPath = await join('instances', build.dirName, 'mods');
-      if (!(await exists(modsPath, { baseDir: BaseDirectory.AppData }))) return build;
-
-      const files = await readDir(modsPath, { baseDir: BaseDirectory.AppData });
-      const jarFiles = files.filter(f => f.name.endsWith('.jar'));
-      let updatedMods = [];
-
-      for (const file of jarFiles) {
-        const fullPath = await join(await appDataDir(), 'instances', build.dirName, 'mods', file.name);
-        try {
-          const meta = await invoke('get_mod_metadata', { path: fullPath });
-          updatedMods.push({
-            name: meta.name || file.name,
-            fileName: file.name,
-            description: meta.description || '',
-            icon: meta.icon || null,
-            version: meta.version || ''
-          });
-        } catch {
-          updatedMods.push({ name: file.name, fileName: file.name });
-        }
-      }
-
-      if (build.manifest && build.versions?.length > 0) {
-        const lastVer = build.versions[build.versions.length - 1];
-        const missing = lastVer.mods.some(m => m.sync !== false && !jarFiles.some(j => j.name === (m.fileName || m.name)));
-        build.needsUpdate = missing;
-      }
-
-      if (!build.versions) build.versions = [];
-      const currentVerName = build.manifest ? (build.versions[build.versions.length - 1]?.name || '1.0.0') : (build.currentVersion || '1.0.0');
-
-      const vIndex = build.manifest ? (build.versions.length - 1) : 0;
-      if (vIndex >= 0) {
-        build.versions[vIndex] = { ...build.versions[vIndex], mods: updatedMods, name: currentVerName };
-      } else {
-        build.versions.push({ id: 'v1', name: currentVerName, mods: updatedMods });
-      }
-
-      return build;
-    } catch { return build; }
-  }
-
   async function fetchCommunityBuilds() {
     try {
       const response = await fetch(`${API_URL}/modpacks`);
@@ -157,34 +119,8 @@
     }));
   }
 
-  function transliterate(word) {
-    const converter = {
-      'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z',
-      'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r',
-      'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'c', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
-      'ь': '', 'ы': 'y', 'ъ': '', 'э': 'e', 'ю': 'yu', 'я': 'ya', '-': '_'
-    };
-    let answer = '';
-    for (let i = 0; i < word.length; ++i) {
-      const char = word[i].toLowerCase();
-      answer += converter[char] !== undefined ? converter[char] : word[i];
-    }
-    return answer.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-  }
-
-  async function getUniqueDirName(name) {
-    let base = transliterate(name) || "instance";
-    let candidate = base;
-    let counter = 1;
-    while (true) {
-      const existsInArr = $myBuilds.some(b => b.dirName === candidate);
-      if (!existsInArr && !(await exists(await join('instances', candidate), { baseDir: BaseDirectory.AppData }))) return candidate;
-      candidate = `${base}_${counter++}`;
-    }
-  }
-
   async function createCustomBuild() {
-    const dirName = await getUniqueDirName("new_build");
+    const dirName = await getUniqueDirName(myBuilds, "new_build");
     const instanceId = crypto.randomUUID();
     const newInstance = {
       instanceId,
@@ -233,53 +169,67 @@
     await writeTextFile(await join('instances', instance.dirName, 'instance.json'), JSON.stringify(instance, null, 1), { baseDir: BaseDirectory.AppData });
   }
 
-  function startEditing() {
+  async function startEditing() {
+    const version = selectedItem.manifest ? (selectedVersion?.name || '') : (selectedItem.currentVersion || '');
+    const gameVersion = selectedItem.game?.version || '1.21.11';
+
+    const core = selectedItem.game?.core || 'fabric';
+    let coreVer = selectedItem.game?.coreVer;
+
+    if (core === 'fabric') {
+      getLoaderVersions(gameVersion).then(_coreVersions => {
+        coreVersions = _coreVersions;
+        if (!coreVer) coreVer = coreVersions[0].loader.version;
+      })
+    }
+
     editData = {
       name: selectedItem.name,
       description: selectedItem.description,
-      version: selectedItem.manifest ? (selectedVersion?.name || '') : (selectedItem.currentVersion || ''),
-      core: selectedItem.game?.core || 'fabric',
-      gameVersion: selectedItem.game?.version || '1.21.11'
+      version,
+      core,
+      coreVer,
+      gameVersion
     };
     isEditing = true;
   }
 
   async function saveEdit() {
-  let updatedBuild = null;
+    let updatedBuild = null;
 
-  myBuilds.update(list => {
-    return list.map(b => {
-      if (b.instanceId === selectedItem.instanceId) {
-        updatedBuild = {
-          ...b,
-          name: editData.name,
-          description: editData.description,
-          game: { core: editData.core, version: editData.gameVersion }
-        };
+    myBuilds.update(list => {
+      return list.map(b => {
+        if (b.instanceId === selectedItem.instanceId) {
+          updatedBuild = {
+            ...b,
+            name: editData.name,
+            description: editData.description,
+            game: { core: editData.core, coreVer: editData.coreVer, version: editData.gameVersion }
+          };
 
-        if (updatedBuild.manifest === false) {
-          updatedBuild.currentVersion = editData.version;
-          if (updatedBuild.versions && updatedBuild.versions[0]) {
-            updatedBuild.versions[0].name = editData.version;
+          if (updatedBuild.manifest === false) {
+            updatedBuild.currentVersion = editData.version;
+            if (updatedBuild.versions && updatedBuild.versions[0]) {
+              updatedBuild.versions[0].name = editData.version;
+            }
           }
+          return updatedBuild;
         }
-        return updatedBuild;
-      }
-      return b;
+        return b;
+      });
     });
-  });
 
-  if (updatedBuild) {
-    try {
-      await saveInstanceInfo(updatedBuild);
-    } catch (e) {
-      console.error("Ошибка при сохранении файла:", e);
-      alert("Не удалось сохранить файл конфигурации");
+    if (updatedBuild) {
+      try {
+        await saveInstanceInfo(updatedBuild);
+      } catch (e) {
+        console.error("Ошибка при сохранении файла:", e);
+        alert("Не удалось сохранить файл конфигурации");
+      }
     }
-  }
 
-  isEditing = false;
-}
+    isEditing = false;
+  }
 
   async function deleteInstance(instance) {
     if (!await confirm(`Удалить сборку "${instance.name}"?`)) return;
@@ -386,7 +336,9 @@
 
   <main class="content">
     {#if selectedItem}
-      <div class="content-settings-scroll">
+      <div
+      style={isEditing ? "max-height: calc(100% - 50px);" : ""}
+      class="content-settings-scroll">
         <header class="content-header">
 
           { #if isEditing }
@@ -412,12 +364,23 @@
                 {#each mcVersions as v}<option value={v}>{v}</option>{/each}
               </select>
             </div>
-            <div class="field">Ядро:
-              <select bind:value={editData.core}>
-                <option value="fabric">Fabric</option>
-                <option value="vanilla">Vanilla</option>
-              </select>
             </div>
+            <div class="row">
+              <div class="field">Ядро:
+                <select bind:value={editData.core}>
+                  <option value="fabric">Fabric</option>
+                  <option value="vanilla">Vanilla</option>
+                </select>
+              </div>
+              { #if editData.core === 'fabric' }
+              <div class="field">Версия ядра:
+                <select bind:value={editData.coreVer}>
+                  {#each coreVersions as v}
+                    <option value={v.loader.version}>{v.loader.version}</option>
+                  {/each}
+                </select>
+              </div>
+              { /if }
             </div>
             <div class="row">
             {#if selectedItem.manifest === false}
@@ -462,6 +425,7 @@
         </header>
       </div>
 
+      {#if !isEditing}
       <section class="mods-viewer" style="{isEditing ? 'padding-top: 0' : ''}">
         <h3>Моды ({selectedVersion?.mods?.length || 0})</h3>
         <div class="mods-list">
@@ -489,6 +453,7 @@
           {/if}
         </div>
       </section>
+      {/if}
     {:else}
       <div class="empty-state">Выберите сборку</div>
     {/if}
@@ -657,6 +622,7 @@
     max-height: 45%;
     border-bottom: 1px solid var(--border);
     padding: 30px 40px;
+    transition: max-height 0.4s;
   }
 
   .title-row {
@@ -728,6 +694,11 @@
     margin: 10px 10px 0 0;
   }
 
+  .row {
+    display: flex;
+    gap: 20px;
+  }
+
   .icon-btn {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -776,6 +747,7 @@
     border: 1px solid var(--border);
     color: var(--text-main);
     padding: 12px;
+    padding-right: 0;
     border-radius: 8px;
     width: 100%;
     height: 100px;
@@ -786,6 +758,7 @@
 
   .edit-grid {
     display: flex;
+    flex-direction: column;
     gap: 15px;
     background: #121212;
     padding: 15px;

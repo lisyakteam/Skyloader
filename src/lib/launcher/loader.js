@@ -47,7 +47,7 @@ export async function launchGame() {
         if (build.game.core === 'fabric') {
             console.log('Fabric')
 
-            await Fabric.checkLibraries(setScreenBlocker, libs, build.game.version);
+            await Fabric.checkLibraries(setScreenBlocker, libs, build);
         }
 
         /* Загружаем саму игру (уже загрузили библиотеки и ассеты) */
