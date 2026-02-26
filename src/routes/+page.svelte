@@ -15,7 +15,7 @@
   import BackgroundEffects from '../components/BackgroundEffects.svelte';
   import Toasts from '../components/Toasts.svelte';
 
-  import { config, myBuilds, accounts, launchInfo } from '$lib/stores.js';
+  import { modal, config, myBuilds, accounts, launchInfo } from '$lib/stores.js';
   import { fetchUpdate } from '$lib/utils/updater.js';
   import { showToast } from '$lib/utils/toasts.js';
 
@@ -72,7 +72,8 @@
   }
   
   function mouseOnMenu() {
-    if(!temporarilyDisableHovering) visible = true;
+    if (get(modal)) return;
+    if (!temporarilyDisableHovering) visible = true;
   }
   
   function mouseLeftMenu() {
@@ -169,7 +170,7 @@
   .pages-container {
     position: relative;
     width: 100%;
-    height: calc(100% - 15px);
+    height: 100%;
     overflow: visible;
     display: flex;
     justify-content: center;
@@ -183,7 +184,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    height: 80px;
+    height: 50px;
     z-index: 500;
     pointer-events: auto;
   }

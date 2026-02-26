@@ -38,6 +38,11 @@
     }
 
     function checkTime() {
+        if (transitioning) {
+            rafId = requestAnimationFrame(checkTime);
+            return;
+        }
+
         const currentPlayer = activePlayer === 1 ? v1 : v2;
 
         if (currentPlayer && currentPlayer.duration) {
@@ -51,18 +56,24 @@
         rafId = requestAnimationFrame(checkTime);
     }
 
-    function swapPlayers() {
+    async function swapPlayers() {
         const nextPlayer = activePlayer === 1 ? v2 : v1;
         const currentPlayer = activePlayer === 1 ? v1 : v2;
 
-        nextPlayer.currentTime = 0;
-        nextPlayer.play().then(() => {
+        try {
+            transitioning = true;
+            await nextPlayer.play();
+
             activePlayer = activePlayer === 1 ? 2 : 1;
+
             setTimeout(() => {
                 currentPlayer.pause();
+                currentPlayer.currentTime = 0;
                 transitioning = false;
             }, fadeTime);
-        });
+        } catch (err) {
+            console.error("Video play failed", err);
+        }
     }
 
     onMount(async () => {
@@ -135,7 +146,6 @@
         opacity: 0;
         transition: opacity 2s ease-in-out;
         will-change: opacity;
-        transform: translateZ(0);
     }
 
     .bg-video.visible {

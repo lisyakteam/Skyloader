@@ -1,18 +1,17 @@
 <script>
-  import { accounts, config } from '$lib/stores.js';
+  import { modal, accounts, config } from '$lib/stores.js';
   import { fade, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
 
   import PlayerHead from '$components/PlayerHead.svelte';
 
   let newName = '';
-  let showAddModal = false;
 
   function addAccount() {
     if (!newName.trim()) return;
     accounts.update(all => [...all, { name: newName.trim(), type: 'offline' }]);
     newName = '';
-    showAddModal = false;
+    modal.set("new-profile")
   }
 
   function removeAccount(index) {
@@ -36,7 +35,7 @@
 
 <div class="profiles-container">
   <header>
-    <button class="add-main-btn" on:click={() => showAddModal = true}>
+    <button class="add-main-btn" on:click={() => $modal = "new-profile"}>
       <span>+</span>НОВЫЙ ПРОФИЛЬ
     </button>
   </header>
@@ -63,8 +62,8 @@
     {/each}
   </div>
 
-  {#if showAddModal}
-    <div class="modal-overlay" transition:fade={{duration: 200}} on:click|self={() => showAddModal = false}>
+  {#if $modal === "new-profile"}
+    <div class="modal-overlay" transition:fade={{duration: 200}} on:click|self={() => $modal = null}>
       <div class="modal" transition:scale={{duration: 200, start: 0.95}}>
         <h2>Новый аккаунт</h2>
         <input
@@ -75,7 +74,7 @@
           autoFocus
         />
         <div class="modal-actions">
-          <button class="cancel" on:click={() => showAddModal = false}>Отмена</button>
+          <button class="cancel" on:click={() => $modal = null}>Отмена</button>
           <button class="confirm" on:click={addAccount} disabled={!newName.trim()}>Создать</button>
         </div>
       </div>

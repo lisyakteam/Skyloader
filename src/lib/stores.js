@@ -11,6 +11,8 @@ export const config = writable();
 
 export const launchInfo = writable(null);
 
+export const modal = writable(null);
+
 config.subscribe(async data => {
     console.log('config', data)
     if (data === undefined) {

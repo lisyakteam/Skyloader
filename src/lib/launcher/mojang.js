@@ -4,6 +4,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { exists, mkdir, writeTextFile, readTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
 import { join, appDataDir } from '@tauri-apps/api/path';
 import { listen } from '@tauri-apps/api/event'
+import { config } from '$lib/stores'
+import { get } from 'svelte/store';
 
 export async function getManifest(versionId, instanceDir) {
     const path = await join('versions', `${versionId}.json`);
@@ -30,7 +32,7 @@ export async function getManifest(versionId, instanceDir) {
 
 export const checkLibraries = async (manifest, setScreenBlocker) => {
     const list = manifest.libraries
-    const libPath = await appDataDir() + "/libraries/"
+    const libPath = get(config).libraryPath || (await appDataDir() + "/libraries/")
 
     const [ _type, _arch ] = [ await platform(), await arch() ]
     console.log('Type / arch:', _type, _arch)
@@ -67,7 +69,7 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
         // На старых версиях, для нативов вместо artifact - classifier
 
         let artifact = lib.downloads.artifact;
-        console.log(lib.downloads)
+
         if (!artifact) {
             const keys = Object.keys(lib.downloads.classifiers);
             const key = keys.find(x => x.match(typeRegex));
@@ -105,19 +107,37 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
         entriesForDownloader[artifact.url] = path
     }
 
-    const response = await invoke("download_many", { urls: entriesForDownloader })
+    let downloaded = 0;
+    let total_count = Object.keys(entriesForDownloader).length
+    console.log(entriesForDownloader, total_count)
 
-    console.log(response)
-    console.log(libs)
+    const unlisten = await listen('downloaded', (event) => {
+        console.log(event)
+        downloaded++
+        setScreenBlocker(`Скачано библиотек: ${downloaded} (${(100/total_count*downloaded).toFixed(1)}%)`)
+    })
+
+    try {
+        const response = await invoke("download_many", { urls: entriesForDownloader })
+        console.log(response)
+        console.log(libs)
+        if (!response) return null
+    } catch (err) {
+        throw err
+    } finally {
+        unlisten()
+    }
+
+    console.log('downloaded!')
 
     return [ libs, natives ]
 }
 
 export const checkAssets = async(manifest, setScreenBlocker) => {
     setScreenBlocker(`Проверка ресурсов`)
-    const dir = await appDataDir();
-    const indexesDir = dir + "/assets/indexes/"
-    const objectsDir = dir + "/assets/objects/"
+    const dir = get(config).assetsPath || (await appDataDir() + '/assets');
+    const indexesDir = dir + "/indexes/"
+    const objectsDir = dir + "/objects/"
 
     const indexPath = indexesDir + manifest.assets + ".json"
 
@@ -162,7 +182,7 @@ export const checkAssets = async(manifest, setScreenBlocker) => {
 
     const unlisten = await listen('downloaded', (event) => {
         downloaded++
-        setScreenBlocker(`Скачано: ${downloaded} (${(100/total_count*downloaded).toFixed(1)}%)`)
+        setScreenBlocker(`Скачано текстур и звуков: ${downloaded} (${(100/total_count*downloaded).toFixed(1)}%)`)
     })
 
     try {
@@ -174,7 +194,7 @@ export const checkAssets = async(manifest, setScreenBlocker) => {
         unlisten()
     }
 
-    return true
+    return dir
 }
 
 export const checkClient = async(manifest, libs, setScreenBlocker) => {
@@ -198,7 +218,7 @@ export const checkClient = async(manifest, libs, setScreenBlocker) => {
     const unlisten = await listen('progress', (event) => {
         const { downloaded, total_size } = event.payload
 
-        setScreenBlocker(`Скачано: ${(downloaded / 1024 / 1024).toFixed(2)}Mb (${Math.ceil(100/total_size*downloaded)}%)`)
+        setScreenBlocker(`Скачано игры: ${(downloaded / 1024 / 1024).toFixed(2)}Mb (${Math.ceil(100/total_size*downloaded)}%)`)
     });
 
     try {

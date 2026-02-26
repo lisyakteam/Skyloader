@@ -40,15 +40,15 @@ export async function launchGame() {
         console.log(natives.join('\n'))
 
         /* Загружаем ассеты - типа текстуры, звуки */
-        const assets = await Mojang.checkAssets(manifest, setScreenBlocker);
+        const assetsDir = await Mojang.checkAssets(manifest, setScreenBlocker);
+
+        if (!assetsDir) throw new Error("не удалась загрузка ресурсов игры")
 
         if (build.game.core === 'fabric') {
             console.log('Fabric')
 
             await Fabric.checkLibraries(setScreenBlocker, libs, build.game.version);
         }
-
-        console.log(assets)
 
         /* Загружаем саму игру (уже загрузили библиотеки и ассеты) */
         const client = await Mojang.checkClient(manifest, libs, setScreenBlocker);
@@ -64,7 +64,7 @@ export async function launchGame() {
                           mainVersion >= 6 ?
                           manifest.mainClass : "net.minecraft.client.Minecraft";
 
-        await createBatAndFire(setScreenBlocker, currentConfig, build, account, instanceDir, gameDir, manifest, libs, mainClass)
+        await createBatAndFire(setScreenBlocker, currentConfig, build, account, instanceDir, assetsDir, gameDir, manifest, libs, mainClass)
     } catch (e) {
         console.error(e);
         alert("Ошибка при запуске: " + e);
@@ -72,7 +72,7 @@ export async function launchGame() {
     }
 }
 
-const createBatAndFire = async (setScreenBlocker, currentConfig, build, account, instanceDir, gameDir, manifest, libs, clientClass) => {
+const createBatAndFire = async (setScreenBlocker, currentConfig, build, account, instanceDir, assetsDir, gameDir, manifest, libs, clientClass) => {
     await invoke('mkdir', { path: instanceDir })
 
     const os = await platform();
@@ -81,12 +81,9 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
     const gameVersion = manifest.id
     const assetsIndex = manifest.assets
     const nativesDir = instanceDir + "/natives"
-    const assetsDir = gameDir + "/assets"
     const classPath = libs.map(x => x.path).join(cpSeparator)
 
-    console.log(nativesDir)
-
-    const serverAddress = "xn--h1aebz4e.xn--p1ai"
+    const serverAddress = "lisyak.net"
 
     const java = currentConfig.javaPath
     const maxMemory = currentConfig.ram || 1024
