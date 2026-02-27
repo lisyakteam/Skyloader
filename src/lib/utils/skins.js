@@ -1,7 +1,7 @@
 import { readTextFile, writeTextFile, exists, BaseDirectory, mkdir } from '@tauri-apps/plugin-fs';
 import { fetch } from '@tauri-apps/plugin-http';
 
-const CACHE_DIR = 'skin_cache';
+const CACHE_DIR = 'cache/skin';
 const MAX_BATCH_SIZE = 12;
 const BATCH_INTERVAL = 1000;
 
