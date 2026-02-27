@@ -18,51 +18,25 @@
   import { modal, config, myBuilds, accounts, launchInfo } from '$lib/stores.js';
   import { fetchUpdate } from '$lib/utils/updater.js';
   import { showToast } from '$lib/utils/toasts.js';
+  import { slideFade } from '$lib/utils/transitions.js';
 
-  let pages = [
-    { name: 'Сервера', component: Servers },
-    { name: 'Версии', component: Builds },
-    { name: 'Играть', component: Game },
-    { name: 'Профили', component: Profiles },
-    { name: 'Настройки', component: Settings },
+  const pages = [
+    { index: 0, name: 'Сервера', component: Servers },
+    { index: 1, name: 'Версии', component: Builds },
+    { index: 2, name: 'Играть', component: Game },
+    { index: 3, name: 'Профили', component: Profiles },
+    { index: 4, name: 'Настройки', component: Settings },
   ];
-  pages = pages.map((x, i) => { return { ...x, index: i } })
-
-  function springOut(t) {
-    const c1 = 1.70158;
-    const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  }
-
-  function slideFade(node, params) {
-    const delay = params.delay || 0;
-    const duration = params.duration || 100;
-    const easing = params.easing || springOut;
-
-    return {
-      delay,
-      duration,
-      css: (t, u) => {
-        const eased = easing(t);
-        return `
-          transform: translateY(${(1 - eased) * 20}px);
-          opacity: ${eased};
-        `;
-      }
-    };
-  }
-  
-  // функция вычисления задержки по индексу: центр = 0, дальше = +/-
-  function buttonDelay(index) {
-    const offset = Math.abs(index - activeIndex);
-    return offset * 40;
-  }
 
   let visible = false;
-  
+
   let temporarilyDisableHovering = false;
   let hoverIndex = null;
   let activeIndex = 2;
+
+  $: visiblePages = visible ? pages : [];
+
+  const buttonDelay = index => Math.abs(index - activeIndex) * 40;
 
   function goTo(index) {
     activeIndex = index;
@@ -70,19 +44,15 @@
     hoverIndex = null;
     visible = false;
   }
-  
-  function mouseOnMenu() {
-    if (get(modal)) return;
-    if (!temporarilyDisableHovering) visible = true;
+
+  const mouseOnMenu = () => {
+    if (!get(modal) && !temporarilyDisableHovering) visible = true;
   }
   
   function mouseLeftMenu() {
-    temporarilyDisableHovering = false;
-    visible = false; 
+    temporarilyDisableHovering = visible = false;
     hoverIndex = null;
   }
-
-  $: visiblePages = visible ? pages : [];
 
   onMount(fetchUpdate)
 
@@ -126,7 +96,7 @@
           class="btn"
           class:active={hoverIndex === null ? index === activeIndex : index === hoverIndex}
           on:click={() => goTo(index)}>
-          {page.name.toUpperCase()}
+          { page.name }
         </button>
       </div>
     {/each}
@@ -220,6 +190,7 @@
     font-family: 'Silkscreen', sans-serif;
     z-index: 1;
     transition: color 0.2s;
+    text-transform: uppercase;
   }
   
   .btn.active {
