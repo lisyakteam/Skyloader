@@ -5,9 +5,9 @@
   export let activeIndex = 0;
   export let position = 0; // -2, -1, 0, 1, 2
   export let zoomOut = false;
+
   $: isActive = hoverIndex !== null ? hoverIndex === index : activeIndex === index;
-  console.log(hoverIndex, isActive, position)
-  console.log(position)
+
 </script>
 
 <div class="page-card"

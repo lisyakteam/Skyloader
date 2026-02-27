@@ -5,6 +5,7 @@
   import { launchGame } from '$lib/launcher/loader.js';
   import { getSkin } from '$lib/utils/skins.js';
   import PlayerHead from '$components/PlayerHead.svelte';
+  import Select from '$components/Select.svelte'
 
   $: buildIndex = $myBuilds.findIndex(b => b.instanceId === $config.lastInstanceId);
   $: activeIdx = buildIndex !== -1 ? buildIndex : 0;

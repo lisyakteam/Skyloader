@@ -9,6 +9,8 @@
   import { myBuilds, config } from '$lib/stores.js';
   import { getLoaderVersions } from '$lib/launcher/fabric.js';
 
+  import Select from '$components/Select.svelte'
+
   import syncModsWithDisk from '$lib/pages/builds/syncModsWithDisk';
   import getUniqueDirName from '$lib/pages/builds/getUniqueDirName';
 
@@ -298,6 +300,18 @@
   function ucase(text) {
     return text?.[0]?.toUpperCase() + text?.slice(1);
   }
+
+  async function updateCoreVersions() {
+    if (editData.core === 'fabric') {
+      coreVersions = [];
+      coreVersions = await getLoaderVersions(editData.gameVersion)
+      if (coreVersions) editData.coreVer = coreVersions[0].loader.version;
+    }
+    else {
+      coreVersions = []
+    }
+  }
+
 </script>
 
 <div class="builds-page">
@@ -360,31 +374,30 @@
           <div class="edit-grid">
             <div class="row">
             <div class="field">Версия игры:
-              <select bind:value={editData.gameVersion}>
-                {#each mcVersions as v}<option value={v}>{v}</option>{/each}
-              </select>
+                <Select
+                bind:value={editData.gameVersion}
+                on:update={updateCoreVersions}
+                items={mcVersions}/>
             </div>
-            </div>
-            <div class="row">
               <div class="field">Ядро:
-                <select bind:value={editData.core}>
-                  <option value="fabric">Fabric</option>
-                  <option value="vanilla">Vanilla</option>
-                </select>
+                <Select
+                bind:value={editData.core}
+                on:update={updateCoreVersions}
+                radius="50"
+                items={["fabric", "vanilla"]}/>
               </div>
               { #if editData.core === 'fabric' }
               <div class="field">Версия ядра:
-                <select bind:value={editData.coreVer}>
-                  {#each coreVersions as v}
-                    <option value={v.loader.version}>{v.loader.version}</option>
-                  {/each}
-                </select>
+                <Select
+                bind:value={editData.coreVer}
+                items={coreVersions.map(x => x.loader.version)}/>
               </div>
               { /if }
             </div>
             <div class="row">
             {#if selectedItem.manifest === false}
-              <div class="field">Версия сборки: <input class="small-input" bind:value={editData.version} /></div>
+              <div class="field">Версия сборки:
+              <input class="small-input" bind:value={editData.version} /></div>
             {/if}
             </div>
           </div>
