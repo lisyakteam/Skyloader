@@ -6,8 +6,10 @@
   import { join, appDataDir } from '@tauri-apps/api/path';
   import { fetch } from '@tauri-apps/plugin-http';
   import { invoke } from '@tauri-apps/api/core';
+
   import { myBuilds, config } from '$lib/stores.js';
   import { getLoaderVersions } from '$lib/launcher/fabric.js';
+  import { getAllForgeVersions } from '$lib/launcher/forge.js';
 
   import Select from '$components/Select.svelte'
 
@@ -307,6 +309,11 @@
       coreVersions = await getLoaderVersions(editData.gameVersion)
       if (coreVersions) editData.coreVer = coreVersions[0].loader.version;
     }
+    else if (editData.core === 'forge') {
+      coreVersions = [];
+      coreVersions = await getAllForgeVersions(editData.gameVersion)
+      if (coreVersions) editData.coreVer = coreVersions[0].version;
+    }
     else {
       coreVersions = []
     }
@@ -383,14 +390,14 @@
                 <Select
                 bind:value={editData.core}
                 on:update={updateCoreVersions}
-                radius="50"
-                items={["fabric", "vanilla"]}/>
+                radius="80"
+                items={["fabric", "forge", "vanilla"]}/>
               </div>
-              { #if editData.core === 'fabric' }
+              { #if editData.core !== "vanilla" }
               <div class="field">Версия ядра:
                 <Select
                 bind:value={editData.coreVer}
-                items={coreVersions.map(x => x.loader.version)}/>
+                items={coreVersions.map(x => x.version || x.loader.version)}/>
               </div>
               { /if }
             </div>

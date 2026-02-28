@@ -112,15 +112,12 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
     console.log(entriesForDownloader, total_count)
 
     const unlisten = await listen('downloaded', (event) => {
-        console.log(event)
         downloaded++
         setScreenBlocker(`Скачано библиотек: ${downloaded} (${(100/total_count*downloaded).toFixed(1)}%)`)
     })
 
     try {
         const response = await invoke("download_many", { urls: entriesForDownloader })
-        console.log(response)
-        console.log(libs)
         if (!response) return null
     } catch (err) {
         throw err
@@ -197,19 +194,28 @@ export const checkAssets = async(manifest, setScreenBlocker) => {
     return dir
 }
 
-export const checkClient = async(manifest, libs, setScreenBlocker) => {
+export const checkClient = async(manifest, instanceDir, build, libs, setScreenBlocker) => {
     const client = manifest.downloads.client
 
     const { url, sha1 } = client
 
-    const clientDir = await appDataDir() + "/versions/" + manifest.id + "/"
+    const isForge = build.game.core === "forge";
+
+    let clientDir; /* 1.1.0: if it's forge, client jar will be modified, so must separate it */
+    if (isForge) {
+        clientDir = instanceDir + "/forge/versions/" + manifest.id + "/"
+    }
+    else {
+        clientDir = await appDataDir() + "/versions/" + manifest.id + "/"
+    }
+
     const path = clientDir + manifest.id + ".jar"
 
     if (await invoke('exists', { path })) {
         const comparison = await invoke("get_file_sha1", { path, hash: sha1 })
         console.log(comparison + ' | checked: ' + path.slice(-30))
         if (comparison === 'true') {
-            libs.push({ path, name: 'client' })
+            if (!isForge) libs.push({ path, name: 'client' })
             return true
         }
         console.log("Corrupted!")
@@ -230,9 +236,8 @@ export const checkClient = async(manifest, libs, setScreenBlocker) => {
         unlisten()
     }
 
-    console.log(path)
+    if (!isForge) libs.push({ path, name: 'client' })
 
-    libs.push({ path, name: 'client' })
     return true
 }
 

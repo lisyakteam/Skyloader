@@ -5,6 +5,7 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { myBuilds, config, accounts, launchInfo } from '$lib/stores.js';
 import * as Mojang from './mojang';
 import * as Fabric from './fabric';
+import * as Forge from './forge';
 import { checkOrInstallJava } from './java';
 
 let timeout;
@@ -42,29 +43,40 @@ export async function launchGame() {
         /* Загружаем ассеты - типа текстуры, звуки */
         const assetsDir = await Mojang.checkAssets(manifest, setScreenBlocker);
 
-        if (!assetsDir) throw new Error("не удалась загрузка ресурсов игры")
-
-        if (build.game.core === 'fabric') {
-            console.log('Fabric')
-
-            await Fabric.checkLibraries(setScreenBlocker, libs, build);
-        }
+        if (!assetsDir) throw new Error("не удалась загрузка ресурсов игры");
 
         /* Загружаем саму игру (уже загрузили библиотеки и ассеты) */
-        const client = await Mojang.checkClient(manifest, libs, setScreenBlocker);
+        /* Если это forge, */
+        const client = await Mojang.checkClient(manifest, instanceDir, build, libs, setScreenBlocker);
+
         console.log(client)
-        /* Нативные библиотеки которые на C++ надо распаковать и указать путь, иначе пизда */
-        await Mojang.unpackNatives(natives, instanceDir, setScreenBlocker);
+
+        console.log('Detected core', build.game.core)
 
         const version = build.game.version.split('.').map(x => +x);
         let mainVersion = version[0] === 1 ? version[1] : version[0];
 
-        const mainClass = build.game.core === 'fabric' ?
-                          "net.fabricmc.loader.impl.launch.knot.KnotClient" :
-                          mainVersion >= 6 ?
-                          manifest.mainClass : "net.minecraft.client.Minecraft";
+        let mainClass;
+        let gameArgs, jvmArgs;
 
-        await createBatAndFire(setScreenBlocker, currentConfig, build, account, instanceDir, assetsDir, gameDir, manifest, libs, mainClass)
+        if (build.game.core === 'fabric') {
+            await Fabric.checkLibraries(setScreenBlocker, libs, build);
+            mainClass = "net.fabricmc.loader.impl.launch.knot.KnotClient"
+        }
+        else if (build.game.core === 'forge') {
+            const [ _mainClass, _jvmArgs, _gameArgs ] = await Forge.checkLibraries(setScreenBlocker, instanceDir, libs, build)
+            mainClass = _mainClass
+            jvmArgs = _jvmArgs;
+            gameArgs = _gameArgs;
+        }
+        else {
+            mainClass = mainVersion >= 6 ? manifest.mainClass : "net.minecraft.client.Minecraft";
+        }
+
+        /* Нативные библиотеки которые на C++ надо распаковать и указать путь, иначе пизда */
+        await Mojang.unpackNatives(natives, instanceDir, setScreenBlocker);
+
+        await createBatAndFire(setScreenBlocker, currentConfig, build, account, instanceDir, assetsDir, gameDir, manifest, libs, mainClass, jvmArgs, gameArgs)
     } catch (e) {
         console.error(e);
         alert("Ошибка при запуске: " + e);
@@ -72,7 +84,7 @@ export async function launchGame() {
     }
 }
 
-const createBatAndFire = async (setScreenBlocker, currentConfig, build, account, instanceDir, assetsDir, gameDir, manifest, libs, clientClass) => {
+const createBatAndFire = async (setScreenBlocker, currentConfig, build, account, instanceDir, assetsDir, gameDir, manifest, libs, clientClass, coreJvmArgs, coreGameArgs) => {
     await invoke('mkdir', { path: instanceDir })
 
     const os = await platform();
@@ -99,6 +111,30 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
         "-Dminecraft.launcher.brand=\"Проект Лисяк\"",
         "-cp", "\"" + classPath.replace(/ /g, '\\ ') + "\"",
         `-Djava.library.path="${nativesDir}"`,
+    ]
+
+    console.log(coreJvmArgs)
+
+    if (coreJvmArgs) coreJvmArgs.forEach(x => args.push(x));
+    if (build.game.core === 'forge') {
+        ([
+            "--add-opens", "java.base/java.util.jar=ALL-UNNAMED",
+            "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+            "--add-opens", "java.base/java.util=ALL-UNNAMED",
+            "--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED",
+            "--add-opens", "java.base/java.text=ALL-UNNAMED",
+            "--add-opens", "java.base/java.util.concurrent=ALL-UNNAMED",
+            "--add-opens", "java.base/java.io=ALL-UNNAMED",
+            "--add-opens", "java.base/java.nio=ALL-UNNAMED",
+            "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",
+            "--add-opens", "java.base/jdk.internal.module=ALL-UNNAMED",
+            "--add-opens", "java.base/java.lang.invoke=ALL-UNNAMED"
+        ]).forEach(x => args.push(x))
+    }
+
+    /* Game arguments */
+
+    ([
         clientClass,
         "--username", account.name,
         "--version", build.id,
@@ -108,7 +144,9 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
         "--uuid", offlineUUID(account.name),
         "--accessToken", "0",
         "--userProperties", "{}",
-    ]
+    ]).forEach(x => args.push(x));
+
+    if (coreGameArgs) coreGameArgs.forEach(x => args.push(x))
 
     if(serverAddress) {
         args.push('--quickPlayMultiplayer')

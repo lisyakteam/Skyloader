@@ -265,41 +265,49 @@ fn unpack(from: String, to: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn execute(path: String) {
-    std::thread::spawn(move || {
-        launch(&path);
-    })
-    .join()
-    .expect("Launch task panicked");
+async fn execute(path: String) -> Result<bool, String> {
+    let handle = std::thread::spawn(move || {
+        launch(&path)
+    });
+
+    let status = handle.join().map_err(|_| "Launch task panicked")?;
+    Ok(status)
 }
 
 #[tokio::main]
-async fn launch(path: &str) {
+async fn launch(path: &str) -> bool {
     let parent = Path::new(path).parent().expect("BAT PARENT ERR");
-
-    launch_impl(path, parent).await;
+    launch_impl(path, parent).await
 }
 
 #[cfg(windows)]
-async fn launch_impl(path: &str, parent: &Path) {
+async fn launch_impl(path: &str, parent: &Path) -> bool {
     use std::os::windows::process::CommandExt;
 
-    Command::new(path)
-        .creation_flags(0x08000000)
-        .stdout(Stdio::piped())
-        .current_dir(parent)
-        .output()
-        .expect("Failed to execute");
+    let output = Command::new(path)
+    .creation_flags(0x08000000) // CREATE_NO_WINDOW
+    .stdout(Stdio::piped())
+    .current_dir(parent)
+    .output();
+
+    match output {
+        Ok(out) => out.status.success(),
+        Err(_) => false,
+    }
 }
 
 #[cfg(unix)]
-async fn launch_impl(path: &str, parent: &Path) {
-    Command::new("bash")
-        .arg(path)
-        .stdout(Stdio::piped())
-        .current_dir(parent)
-        .output()
-        .expect("Failed to execute");
+async fn launch_impl(path: &str, parent: &Path) -> bool {
+    let output = Command::new("bash")
+    .arg(path)
+    .stdout(Stdio::piped())
+    .current_dir(parent)
+    .output();
+
+    match output {
+        Ok(out) => out.status.success(),
+        Err(_) => false,
+    }
 }
 
 #[tauri::command]

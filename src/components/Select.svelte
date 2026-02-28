@@ -131,7 +131,7 @@
              transition:fade={{ duration: 100 }}>
 
           {#each visibleSlots as slot (slot.id)}
-            {@const rad = (slot.angle - 230) * (Math.PI / 180)}
+            {@const rad = (slot.angle - 90) * (Math.PI / 180)}
             {@const tx = Math.cos(rad) * radius}
             {@const ty = Math.sin(rad) * radius}
 
