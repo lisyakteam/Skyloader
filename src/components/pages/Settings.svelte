@@ -60,10 +60,10 @@
 
       if (javaVersion) {
         const verNum = parseInt(javaVersion.split('.')[0]);
-        isJavaValid = verNum >= 25;
+        isJavaValid = verNum >= 8;
 
         if (!isJavaValid) {
-          showToast(`Ваша версия джава ${javaVersion}, необходима 25`, "error");
+          showToast(`Ваша версия джава устарела!`, "error");
         }
       } else {
         isJavaValid = false;

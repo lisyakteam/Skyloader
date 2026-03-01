@@ -9,28 +9,28 @@ async function getJavaConfig() {
     const osType = await platform(); // 'windows', 'linux', 'macos'
     if (osType === 'windows') {
         return {
-            url: "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.1%2B8/OpenJDK25U-jre_x64_windows_hotspot_25.0.1_8.zip",
-            binPath: ['jdk-25.0.1+8-jre', 'bin', 'javaw.exe'],
+            url: "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.9%2B10/OpenJDK21U-jre_x64_windows_hotspot_21.0.9_10.zip",
+            binPath: ['jdk-21.0.9+10-jre', 'bin', 'javaw.exe'],
             ext: 'zip'
         };
     } else {
         return {
-            url: "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.1%2B8/OpenJDK25U-jre_x64_linux_hotspot_25.0.1_8.tar.gz",
-            binPath: ['jdk-25.0.1+8-jre', 'bin', 'java'],
+            url: "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.9%2B10/OpenJDK21U-jre_x64_linux_hotspot_21.0.9_10.tar.gz",
+            binPath: ['jdk-21.0.9+10-jre', 'bin', 'java'],
             ext: 'tar.gz'
         };
     }
 }
 
 export async function checkOrInstallJava() {
-    launchInfo.set("Начинаем загрузку Java 25.")
+    launchInfo.set("Начинаем загрузку Java 21.")
     const javaCfg = await getJavaConfig();
     const appDir = await appDataDir();
-    launchInfo.set("Начинаем загрузку Java 25..")
+    launchInfo.set("Начинаем загрузку Java 21..")
     const runtimeDir = await join(appDir, 'java');
     const executablePath = await join(runtimeDir, ...javaCfg.binPath);
 
-    launchInfo.set("Начинаем загрузку Java 25...")
+    launchInfo.set("Начинаем загрузку Java 21...")
     if (await exists(executablePath)) {
         if (await invoke('check_java_version', { path: executablePath })) {
             launchInfo.set("Java уже установлена!")
@@ -39,7 +39,7 @@ export async function checkOrInstallJava() {
         }
     }
 
-    launchInfo.set("Загрузка Java 25...");
+    launchInfo.set("Загрузка Java 21...");
     if (!(await exists(runtimeDir))) await mkdir(runtimeDir, { recursive: true });
 
     const unlisten = await listen('progress', (event) => {
@@ -48,7 +48,7 @@ export async function checkOrInstallJava() {
         launchInfo.set(`Загрузка Java: ${percent}%`);
     });
 
-    const archivePath = await join(runtimeDir, `java25.${javaCfg.ext}`);
+    const archivePath = await join(runtimeDir, `java21.${javaCfg.ext}`);
 
     try {
         await invoke("large_download", { path: archivePath, url: javaCfg.url });
@@ -73,5 +73,5 @@ export async function checkOrInstallJava() {
 }
 
 function updateConfig(path) {
-    config.update(c => ({ ...c, javaPath: path, javaVersion: 25 }));
+    config.update(c => ({ ...c, javaPath: path, javaVersion: 21 }));
 }
