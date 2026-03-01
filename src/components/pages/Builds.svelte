@@ -10,6 +10,7 @@
   import { myBuilds, config } from '$lib/stores.js';
   import { getLoaderVersions } from '$lib/launcher/fabric.js';
   import { getAllForgeVersions } from '$lib/launcher/forge.js';
+  import { showToast } from '$lib/utils/toasts.js';
 
   import Select from '$components/Select.svelte'
 
@@ -145,7 +146,7 @@
   }
 
   async function addInstance(communityBuild) {
-    const dirName = await getUniqueDirName(communityBuild.id);
+    const dirName = await getUniqueDirName(myBuilds, communityBuild.id);
     const instanceId = crypto.randomUUID();
     const newInstance = {
       instanceId,
@@ -248,41 +249,85 @@
     await openPath(path);
   }
 
+  async function asyncPool(poolLimit, array, iteratorFn) {
+    const ret = [];
+    const executing = [];
+    for (const item of array) {
+      const p = Promise.resolve().then(() => iteratorFn(item, array));
+      ret.push(p);
+      if (poolLimit <= array.length) {
+        const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+        executing.push(e);
+        if (executing.length >= poolLimit) {
+          await Promise.race(executing);
+        }
+      }
+    }
+    return Promise.all(ret);
+  }
+
   async function runSync(build) {
     if (isSyncing) return;
     isSyncing = true;
 
     const initial = selectedItem.versions.length === 1;
-    console.log(initial ? 'Initial syncing...' : 'Resyncing...')
+    console.log(initial ? 'Initial syncing...' : 'Resyncing...');
 
     try {
-      const update = build.updateAvailable || build.versions[build.versions.length-1];
+      const update = build.updateAvailable || build.versions[build.versions.length - 1];
       const res = await fetch(`${API_URL}/modpacks/${build.sourceBuildId}-${update.id}`);
       const manifest = await res.json();
-      for (const file of manifest) {
+
+      const filesToProcess = manifest.filter(file => {
+        if (file.sync === false && !initial) return false;
+        return true;
+      });
+
+      syncProgress = "Проверка файлов...";
+
+      const CONCURRENCY_LIMIT = 5;
+
+      await asyncPool(CONCURRENCY_LIMIT, filesToProcess, async (file) => {
         const fileName = file.path.split('/').pop();
-        if (file.sync === false && !initial) continue; // skipping options.txt if modpack was already installed, yes
         const relPath = await join('instances', build.dirName, ...file.path.split('/'));
-        let download = true;
+
         if (await exists(relPath, { baseDir: BaseDirectory.AppData })) {
           const hash = await invoke('get_file_sha256', { path: await join(await appDataDir(), relPath) });
-          if (hash === file.sha256) download = false;
+          if (hash === file.sha256) return;
         }
-        if (download) {
-          syncProgress = `Загрузка: ${fileName}`;
-          const fResp = await fetch(file.urls[0]);
-          await writeFile(relPath, new Uint8Array(await fResp.arrayBuffer()), { baseDir: BaseDirectory.AppData });
+
+        for (const url of file.urls) {
+          try {
+            const fResp = await fetch(url);
+            if (!fResp.ok) throw new Error(`Status ${fResp.status}`);
+
+            const data = await fResp.arrayBuffer();
+            await writeFile(relPath, new Uint8Array(data), { baseDir: BaseDirectory.AppData });
+
+            showToast("Загружено " + fileName);
+            break;
+          } catch (e) {
+            console.error(`Ошибка загрузки ${fileName} с ${url}`, e);
+          }
         }
-      }
+      });
+
       if (build.updateAvailable) {
         build.versions.push({ id: update.id, name: update.name, mods: [] });
         build.updateAvailable = null;
       }
       build.needsUpdate = false;
+
       const synced = await syncModsWithDisk(build);
       myBuilds.update(l => l.map(b => b.instanceId === build.instanceId ? synced : b));
       await writeTextFile(await join('instances', build.dirName, 'instance.json'), JSON.stringify(synced, null, 1), { baseDir: BaseDirectory.AppData });
-    } catch (e) { alert(e); } finally { isSyncing = false; syncProgress = ""; }
+
+    } catch (e) {
+      alert(e);
+    } finally {
+      isSyncing = false;
+      syncProgress = "";
+    }
   }
 
   function selectInstance(id) {
