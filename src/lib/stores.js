@@ -1,5 +1,7 @@
 import { writable } from 'svelte/store';
 import { writeTextFile, readTextFile, BaseDirectory, exists } from '@tauri-apps/plugin-fs';
+import { appDataDir, join, dirname } from '@tauri-apps/api/path';
+import { platform } from '@tauri-apps/plugin-os';
 
 const CONFIG_FILE = "config.json";
 
@@ -15,19 +17,56 @@ export const modal = writable(null);
 
 config.subscribe(async data => {
     if (data === undefined) {
-        if (!await exists('config.json', { baseDir: BaseDirectory.AppData })) {
-            data = {
-                lastInstanceId: null,
-                selectedAccountIndex: 0
+        let configData;
+        const configFileName = 'config.json';
+
+        try {
+            if (await exists(configFileName, { baseDir: BaseDirectory.AppData })) {
+                const content = await readTextFile(configFileName, { baseDir: BaseDirectory.AppData });
+                configData = JSON.parse(content);
+            } else {
+                configData = {
+                    lastInstanceId: null,
+                    selectedAccountIndex: 0,
+                    assetsPath: "",
+                    libraryPath: ""
+                };
+            }
+        } catch (e) {
+            console.error("Ошибка при чтении конфига:", e);
+            return;
+        }
+
+        if (!configData.assetsPath || !configData.libraryPath) {
+            const currentPlatform = platform();
+            const appDir = await appDataDir();
+            const defaultAssets = await join(appDir, 'assets') + '/';
+            const defaultLibraries = await join(appDir, 'libraries') + '/';
+
+            if (currentPlatform === 'windows') {
+                const roamingDir = await dirname(appDir);
+                const mcAssets = await join(roamingDir, '.minecraft', 'assets') + '/';
+                const mcLibraries = await join(roamingDir, '.minecraft', 'libraries') + '/';
+
+                if (!configData.assetsPath) {
+                    configData.assetsPath = (await exists(mcAssets)) ? mcAssets : defaultAssets;
+                }
+                if (!configData.libraryPath) {
+                    configData.libraryPath = (await exists(mcLibraries)) ? mcLibraries : defaultLibraries;
+                }
+            } else {
+                if (!configData.assetsPath) configData.assetsPath = defaultAssets;
+                if (!configData.libraryPath) configData.libraryPath = defaultLibraries;
             }
         }
-        else data = JSON.parse(await readTextFile('config.json', { baseDir: BaseDirectory.AppData }))
-        config.set(data);
+
+        config.set(configData);
+    } else {
+        await writeTextFile('config.json', JSON.stringify(data, null, 4), {
+            baseDir: BaseDirectory.AppData
+        });
     }
-    else {
-        await writeTextFile('config.json', JSON.stringify(data, null, 4), { baseDir: BaseDirectory.AppData })
-    }
-})
+});
 
 accounts.subscribe(async data => {
     if (data === undefined) {
