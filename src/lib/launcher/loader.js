@@ -119,6 +119,12 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
 
     if(!java) return setScreenBlocker('Укажите путь к джаве в настройках');
 
+    const graphics = [
+        "DRI_PRIME=1",
+        "__NV_PRIME_RENDER_OFFLOAD=1",
+        "__GLX_VENDOR_LIBRARY_NAME=nvidia",
+    ]
+
     const jvm_args = "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M -Djava.net.preferIPv4Stack=true".split(' ')
 
     const args = [
@@ -170,7 +176,7 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
 
     const file_type = os === 'windows' ? '.bat' : '.sh'
 
-    const bat = `"${java}" ${args.join(' ')}`
+    const bat = `${graphics.join(' ')} "${java}" ${args.join(' ')}`
     const batPath = instanceDir + "/start" + file_type
     await invoke('write_executable', { path: batPath, data: bat })
 
