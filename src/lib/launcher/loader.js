@@ -7,6 +7,7 @@ import * as Mojang from './mojang';
 import * as Fabric from './fabric';
 import * as Forge from './forge';
 import { checkOrInstallJava } from './java';
+import { showToast } from '$lib/utils/toasts.js';
 
 let timeout;
 
@@ -34,11 +35,8 @@ export async function launchGame() {
         setScreenBlocker("Получение данных версии...");
         const manifest = await Mojang.getManifest(build.game.version);
 
-        console.log(manifest)
-
         /* Загружаем библиотеки ваниллы нахуй */
         const [ libs, natives ] = await Mojang.checkLibraries(manifest, setScreenBlocker);
-        console.log(natives.join('\n'))
 
         /* Загружаем ассеты - типа текстуры, звуки */
         const assetsDir = await Mojang.checkAssets(manifest, setScreenBlocker);
@@ -48,8 +46,6 @@ export async function launchGame() {
         /* Загружаем саму игру (уже загрузили библиотеки и ассеты) */
         /* Если это forge, */
         const client = await Mojang.checkClient(manifest, instanceDir, build, libs, setScreenBlocker);
-
-        console.log(client)
 
         console.log('Detected core', build.game.core)
 
@@ -95,12 +91,33 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
     const nativesDir = instanceDir + "/natives"
     const classPath = libs.map(x => x.path).join(cpSeparator)
 
-    const serverAddress = "lisyak.net"
+    const java = currentConfig.javaPath;
+    const javaRequirements = build.req?.java;
 
-    const java = currentConfig.javaPath
-    const maxMemory = currentConfig.ram || 1024
+    if (javaRequirements) {
+        const javaVersion = await invoke('get_java_version', { path: java });
 
-    if(!java) return setScreenBlocker('Укажите путь к джаве в настройках')
+        if (javaRequirements[0] > javaVersion || javaRequirements[1] < javaVersion) {
+            showToast(`Необходима версия Java ${recommendedJava}, у вас — ${javaVersion}`, "error");
+        }
+    }
+
+    const maxMemory = currentConfig.ram || 1024;
+    const memoryRequirements = build.req?.ram;
+
+    if (memoryRequirements) {
+        const { min, recommended } = memoryRequirements;
+
+        if (min > maxMemory) {
+            throw new Error("Выделено недостаточно памяти, измените в настройках!")
+        }
+        else if (recommended > maxMemory) {
+            showToast(`Выделено памяти меньше, чем рекомендовано: ${maxMemory}/${recommended} MB`, "error")
+        }
+    }
+
+
+    if(!java) return setScreenBlocker('Укажите путь к джаве в настройках');
 
     const jvm_args = "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M -Djava.net.preferIPv4Stack=true".split(' ')
 
@@ -112,8 +129,6 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
         "-cp", "\"" + classPath.replace(/ /g, '\\ ') + "\"",
         `-Djava.library.path="${nativesDir}"`,
     ]
-
-    console.log(coreJvmArgs)
 
     if (coreJvmArgs) coreJvmArgs.forEach(x => args.push(x));
     if (build.game.core === 'forge') {
@@ -148,9 +163,9 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
 
     if (coreGameArgs) coreGameArgs.forEach(x => args.push(x))
 
-    if(serverAddress) {
+    if(build.remote && build.remote.server) {
         args.push('--quickPlayMultiplayer')
-        args.push(serverAddress)
+        args.push(build.remote.server)
     }
 
     const file_type = os === 'windows' ? '.bat' : '.sh'
@@ -159,8 +174,6 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
     const batPath = instanceDir + "/start" + file_type
     await invoke('write_executable', { path: batPath, data: bat })
 
-    console.log(bat)
-    console.log(batPath)
     const debug = `"${java.replace('javaw.exe', 'java.exe')}" ${args.join(' ')}\npause`
     const debugPath = instanceDir + "/startWithLogs" + file_type
     await invoke('write_executable', { path: debugPath, data: debug })

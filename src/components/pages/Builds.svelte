@@ -115,8 +115,21 @@
     myBuilds.update(list => list.map(local => {
       if (!local.manifest) return local;
       const remote = communityBuilds.find(r => r.id === local.sourceBuildId);
+
       if (remote && local.versions?.length > 0) {
-        if (local.versions[local.versions.length - 1].id !== remote.latestVersion.id) {
+
+        const remoteUpdated = JSON.stringify(local.remote) !== JSON.stringify(remote.remote);
+        const reqUpdated = JSON.stringify(local.req) !== JSON.stringify(remote.req);
+        const versionAvailable = local.versions[local.versions.length - 1].id !== remote.latestVersion.id;
+
+        if (remoteUpdated || reqUpdated) {
+          local.remote = remote.remote;
+          local.req = remote.req;
+          console.log('Remote OR Requirements entry changed')
+          saveInstanceInfo(local);
+        }
+
+        if (versionAvailable) {
           return { ...local, updateAvailable: remote.latestVersion };
         }
       }
@@ -137,7 +150,6 @@
       currentVersion: '1.0.0',
       versions: [{ id: 'local', name: '1.0.0', mods: [] }]
     };
-    await mkdir(await join('instances', dirName), { baseDir: BaseDirectory.AppData, recursive: true });
     await mkdir(await join('instances', dirName, 'mods'), { baseDir: BaseDirectory.AppData, recursive: true });
     await saveInstanceInfo(newInstance);
     myBuilds.update(list => [...list, newInstance]);
@@ -154,12 +166,13 @@
       name: communityBuild.name,
       description: communityBuild.description,
       game: communityBuild.game,
+      req: communityBuild.req,
+      ...(communityBuild.remote && { remote: communityBuild.remote }),
       dirName,
       manifest: true,
       versions: [{ id: 'v_sync', name: 'Синхронизация...', mods: [] }],
       updateAvailable: communityBuild.latestVersion
     };
-    await mkdir(await join('instances', dirName), { baseDir: BaseDirectory.AppData, recursive: true });
     await mkdir(await join('instances', dirName, 'mods'), { baseDir: BaseDirectory.AppData, recursive: true });
     await saveInstanceInfo(newInstance);
     myBuilds.update(list => [ ...list, newInstance ]);
