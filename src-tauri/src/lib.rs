@@ -8,12 +8,9 @@ use std::sync::{
 };
 use std::thread;
 use std::time::Duration;*/
-use base64::{engine::general_purpose, Engine as _};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::fs::File;
-use std::io::Read;
 use std::env;
 
 #[cfg(unix)]
@@ -42,21 +39,7 @@ use sysinfo::System;
 
 use chksum_sha1 as sha1;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ModMetadata {
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub version: Option<String>,
-    pub icon: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct FabricModJson {
-    name: Option<String>,
-    description: Option<String>,
-    version: Option<String>,
-    icon: Option<serde_json::Value>,
-}
+mod sync_local_instances;
 
 const CONCURRENT_REQUESTS: usize = 4;
 
@@ -156,57 +139,6 @@ fn find_java_in_path() -> Option<String> {
         }
     }
     None
-}
-
-#[tauri::command]
-async fn get_mod_metadata(path: String) -> Result<ModMetadata, String> {
-    let file = File::open(&path).map_err(|e| e.to_string())?;
-    let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
-
-    let mut contents = String::new();
-    {
-        let mut mod_json_file = archive
-            .by_name("fabric.mod.json")
-            .map_err(|_| "Not a fabric mod")?;
-        mod_json_file
-            .read_to_string(&mut contents)
-            .map_err(|e| e.to_string())?;
-    }
-
-    let parsed: FabricModJson = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
-    let mut icon_base64 = None;
-
-    if let Some(icon_val) = parsed.icon {
-        let icon_path = if icon_val.is_string() {
-            icon_val.as_str().map(|s| s.to_string())
-        } else if icon_val.is_object() {
-            icon_val
-                .get("128")
-                .or(icon_val.get("64"))
-                .or(icon_val.get("32"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-        } else {
-            None
-        };
-
-        if let Some(p) = icon_path {
-            if let Ok(mut icon_file) = archive.by_name(&p) {
-                let mut buffer = Vec::new();
-                if icon_file.read_to_end(&mut buffer).is_ok() {
-                    let b64 = general_purpose::STANDARD.encode(buffer);
-                    icon_base64 = Some(format!("data:image/png;base64,{}", b64));
-                }
-            }
-        }
-    }
-
-    Ok(ModMetadata {
-        name: parsed.name,
-        description: parsed.description,
-        version: parsed.version,
-        icon: icon_base64,
-    })
 }
 
 #[tauri::command]
@@ -512,7 +444,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_file_sha256,
             get_file_sha1,
-            get_mod_metadata,
             execute,
             unpack,
             read_dir,
@@ -529,6 +460,7 @@ pub fn run() {
             get_total_ram,
             find_system_java,
             make_executable,
+            sync_local_instances::sync_local_instances,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

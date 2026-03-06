@@ -109,7 +109,7 @@ const createBatAndFire = async (setScreenBlocker, currentConfig, build, account,
         const { min, recommended } = memoryRequirements;
 
         if (min > maxMemory) {
-            throw new Error("Выделено недостаточно памяти, измените в настройках!")
+            return setScreenBlocker("Выделено недостаточно памяти, измените в настройках!");
         }
         else if (recommended > maxMemory) {
             showToast(`Выделено памяти меньше, чем рекомендовано: ${maxMemory}/${recommended} MB`, "error")

@@ -14,7 +14,6 @@
 
   import Select from '$components/Select.svelte'
 
-  import syncModsWithDisk from '$lib/pages/builds/syncModsWithDisk';
   import getUniqueDirName from '$lib/pages/builds/getUniqueDirName';
 
   const API_URL = "https://lisyak.net/launcher";
@@ -38,9 +37,14 @@
   onMount(async () => {
     try {
       await initFileSystem();
-      await loadLocalBuilds();
-      await fetchCommunityBuilds();
-      await fetchMcVersions();
+
+      myBuilds.set(await invoke('sync_local_instances'));
+
+      const [ community, versions ] = await Promise.all([
+        fetchCommunityBuilds(),
+        fetchMcVersions()
+      ]);
+
     } catch (e) {
       alert("Ошибка: " + e.message);
     } finally {
@@ -49,11 +53,8 @@
   });
 
   async function initFileSystem() {
-    if (!(await exists('.', { baseDir: BaseDirectory.AppData }))) {
-      await mkdir('.', { baseDir: BaseDirectory.AppData, recursive: true });
-    }
     if (!(await exists('instances', { baseDir: BaseDirectory.AppData }))) {
-      await mkdir('instances', { baseDir: BaseDirectory.AppData });
+      await mkdir('instances', { baseDir: BaseDirectory.AppData, recursive: true });
     }
   }
 
@@ -65,20 +66,6 @@
     } catch (e) {
       mcVersions = ["1.21.11", "1.19.2", "1.18.2", "1.16.5"];
     }
-  }
-
-  async function loadLocalBuilds() {
-    const folders = await readDir('instances', { baseDir: BaseDirectory.AppData });
-    let loaded = [];
-    for (const folder of folders) {
-      const infoPath = await join('instances', folder.name, 'instance.json');
-      if (await exists(infoPath, { baseDir: BaseDirectory.AppData })) {
-        const rawInfo = await readTextFile(infoPath, { baseDir: BaseDirectory.AppData });
-        const data = JSON.parse(rawInfo);
-        loaded.push(await syncModsWithDisk(data));
-      }
-    }
-    myBuilds.set(loaded);
   }
 
   async function fetchCommunityBuilds() {
