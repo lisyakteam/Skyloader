@@ -8,8 +8,6 @@
         try {
             const skinUrl = await getSkin(username);
 
-            console.log(skinUrl)
-
             if (skinUrl) {
                 headUrl = await getHeadFromSkin(skinUrl, 32);
             }

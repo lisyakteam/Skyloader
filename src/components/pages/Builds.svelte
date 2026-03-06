@@ -105,13 +105,15 @@
 
       if (remote && local.versions?.length > 0) {
 
-        const remoteUpdated = JSON.stringify(local.remote) !== JSON.stringify(remote.remote);
+        const remoteUpdated = Object.keys(local).length === Object.keys(remote).length &&
+               Object.keys(local).every(key => local[key] === remote[key]);
         const reqUpdated = JSON.stringify(local.req) !== JSON.stringify(remote.req);
         const versionAvailable = local.versions[local.versions.length - 1].id !== remote.latestVersion.id;
 
         if (remoteUpdated || reqUpdated) {
           local.remote = remote.remote;
           local.req = remote.req;
+
           console.log('Remote OR Requirements entry changed')
           saveInstanceInfo(local);
         }

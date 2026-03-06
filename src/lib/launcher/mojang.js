@@ -61,8 +61,6 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
 
     const entriesForDownloader = {}
 
-    console.log(list)
-
     for (const lib of list) {
         const isNative = lib.name.match('native') && lib.rules || lib.natives;
 
@@ -74,7 +72,6 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
             const keys = Object.keys(lib.downloads.classifiers);
             const key = keys.find(x => x.match(typeRegex));
             artifact = lib.downloads.classifiers[key];
-            console.log('CLASSIFIER', artifact, key, typeRegex)
         }
 
         if (!artifact) continue;
@@ -85,7 +82,6 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
         const path = libPath + split[0].replace(/\./g,"/") + "/" + split[1] + "/" + split[2] + "/" + name
 
         if (isNative) {
-            console.log('Checking native:\n' + artifact.path + "\nPath: " + path)
             if (!artifact.path.match(nativeRegex)) {
                 continue;
             }
@@ -98,8 +94,6 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
         if (await invoke('exists', { path })) {
             const comparison = await invoke("get_file_sha1", { path, hash: artifact.sha1 })
 
-            console.log(comparison + ' | checked: ' + path)
-
             if (comparison === 'true') continue
             console.log(path + " - Detected corruption! (sha1)")
         }
@@ -109,7 +103,6 @@ export const checkLibraries = async (manifest, setScreenBlocker) => {
 
     let downloaded = 0;
     let total_count = Object.keys(entriesForDownloader).length
-    console.log(entriesForDownloader, total_count)
 
     const unlisten = await listen('downloaded', (event) => {
         downloaded++
@@ -163,7 +156,6 @@ export const checkAssets = async(manifest, setScreenBlocker) => {
     let entries
     try {
         entries = await invoke("get_not_installed", { objectsDir, paths })
-        console.log(entries)
     } catch(e) {
         console.log(e)
         throw e
@@ -213,7 +205,6 @@ export const checkClient = async(manifest, instanceDir, build, libs, setScreenBl
 
     if (await invoke('exists', { path })) {
         const comparison = await invoke("get_file_sha1", { path, hash: sha1 })
-        console.log(comparison + ' | checked: ' + path.slice(-30))
         if (comparison === 'true') {
             if (!isForge) libs.push({ path, name: 'client' })
             return true
